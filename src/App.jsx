@@ -18,33 +18,61 @@ import {
   Volume2,
   X,
 } from 'lucide-react'
-import { prepareSpeechText } from './speech'
+import { chooseEnglishMaleVoice, prepareSpeechText } from './speech'
 
 const BASE_URL = import.meta.env.BASE_URL
 const CATALOG_URL = `${BASE_URL}textbooks/data/catalog.json`
 const PAGE_KEY = 'xiaoyi-textbook-position-v1'
 
-function speak(text, onEnd) {
+let speechRequestId = 0
+
+function stopSpeaking() {
+  speechRequestId += 1
+  window.speechSynthesis?.cancel()
+}
+
+function loadSpeechVoices() {
+  const synthesis = window.speechSynthesis
+  const available = synthesis.getVoices()
+  if (available.length) return Promise.resolve(available)
+
+  return new Promise(resolve => {
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      synthesis.removeEventListener?.('voiceschanged', finish)
+      resolve(synthesis.getVoices())
+    }
+    synthesis.addEventListener?.('voiceschanged', finish)
+    window.setTimeout(finish, 700)
+  })
+}
+
+async function speak(text, onEnd) {
   if (!text || !('speechSynthesis' in window)) { onEnd?.(); return }
-  window.speechSynthesis.cancel()
+  stopSpeaking()
+  const requestId = speechRequestId
   const prepared = prepareSpeechText(text)
   const chunks = (prepared.match(/[^.!?]+[.!?]?/g) || [prepared])
     .map(item => item.trim())
     .filter(Boolean)
     .flatMap(item => item.length <= 180 ? [item] : (item.match(/.{1,180}(?:\s|$)/g) || [item]))
-  const voices = window.speechSynthesis.getVoices()
-  const voice = voices.find(item => item.lang.toLowerCase().startsWith('en-gb'))
-    || voices.find(item => item.lang.toLowerCase().startsWith('en'))
+  const voices = await loadSpeechVoices()
+  if (requestId !== speechRequestId) return
+  const voice = chooseEnglishMaleVoice(voices)
   let index = 0
   const next = () => {
+    if (requestId !== speechRequestId) return
     if (index >= chunks.length) { onEnd?.(); return }
     const utterance = new SpeechSynthesisUtterance(chunks[index++])
-    utterance.lang = 'en-GB'
-    utterance.rate = 0.78
-    utterance.pitch = 1.03
+    utterance.lang = voice?.lang || 'en-GB'
+    utterance.rate = 0.68
+    utterance.pitch = 0.9
+    utterance.volume = 1
     if (voice) utterance.voice = voice
-    utterance.onend = next
-    utterance.onerror = () => onEnd?.()
+    utterance.onend = () => window.setTimeout(next, 180)
+    utterance.onerror = event => { if (event.error !== 'canceled') onEnd?.() }
     window.speechSynthesis.speak(utterance)
   }
   next()
@@ -153,7 +181,7 @@ function TextbookPage({ book, page, pageData, pageImageUrl, zoom, pointMode }) {
   const [activeLine, setActiveLine] = useState(-1)
   const [loadedImage, setLoadedImage] = useState('')
   const imageReady = Boolean(pageImageUrl) && loadedImage === pageImageUrl
-  useEffect(() => { setActiveLine(-1); window.speechSynthesis?.cancel() }, [book.id, page])
+  useEffect(() => { setActiveLine(-1); stopSpeaking() }, [book.id, page])
   const playLine = (line, index) => {
     setActiveLine(index)
     speak(line.text, () => setActiveLine(-1))
@@ -318,8 +346,8 @@ function SelectionSpeaker() {
   return (
     <div className="selection-speaker" role="status">
       <span>已选中：{selectedText.length > 42 ? `${selectedText.slice(0, 42)}…` : selectedText}</span>
-      <button onMouseDown={event => event.preventDefault()} onClick={() => { if (playing) { window.speechSynthesis.cancel(); setPlaying(false) } else { setPlaying(true); speak(selectedText, () => setPlaying(false)) } }}>{playing ? <Square /> : <Volume2 />}{playing ? '停止' : '朗读选中内容'}</button>
-      <button className="selection-close" aria-label="关闭" onClick={() => { window.speechSynthesis?.cancel(); setPlaying(false); setSelectedText('') }}><X /></button>
+      <button onMouseDown={event => event.preventDefault()} onClick={() => { if (playing) { stopSpeaking(); setPlaying(false) } else { setPlaying(true); speak(selectedText, () => setPlaying(false)) } }}>{playing ? <Square /> : <Volume2 />}{playing ? '停止' : '朗读选中内容'}</button>
+      <button className="selection-close" aria-label="关闭" onClick={() => { stopSpeaking(); setPlaying(false); setSelectedText('') }}><X /></button>
     </div>
   )
 }
