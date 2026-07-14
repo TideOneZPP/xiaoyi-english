@@ -9,10 +9,19 @@ function getStoredProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {} } catch { return {} }
 }
 
+function prepareSpeechText(text) {
+  return text
+    .replace(/\bMrs\.?(?=\s|$|[,;:!?])/gi, 'Missus')
+    .replace(/\bMr\.?(?=\s|$|[,;:!?])/gi, 'Mister')
+    .replace(/\bMs\.?(?=\s|$|[,;:!?])/gi, 'Miz')
+    .replace(/\bDr\.?(?=\s|$|[,;:!?])/gi, 'Doctor')
+}
+
 function speak(text, onEnd) {
   if (!('speechSynthesis' in window)) { onEnd?.(); return }
   window.speechSynthesis.cancel()
-  const sentences = (text.match(/[^.!?]+[.!?]?/g) || [text]).map(item => item.trim()).filter(Boolean)
+  const speechText = prepareSpeechText(text)
+  const sentences = (speechText.match(/[^.!?]+[.!?]?/g) || [speechText]).map(item => item.trim()).filter(Boolean)
   const chunks = sentences.flatMap(sentence => sentence.length <= 180 ? [sentence] : (sentence.match(/.{1,180}(?:\s|$)/g) || [sentence]).map(item => item.trim()))
   const voices = window.speechSynthesis.getVoices()
   const voice = voices.find(item => item.lang.toLowerCase().startsWith('en-gb')) || voices.find(item => item.lang.toLowerCase().startsWith('en'))
