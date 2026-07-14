@@ -2,4 +2,8 @@ node_modules/
 dist/
 .playwright-cli/
 output/
+textbooks/
+tmp/
 *.log
+__pycache__/
+*.pyc

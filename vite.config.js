@@ -1,6 +1,38 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { createReadStream, existsSync, statSync } from 'node:fs'
+import { extname, resolve, sep } from 'node:path'
+
+const textbookRoot = resolve(process.cwd(), 'textbooks')
+const contentTypes = {
+  '.json': 'application/json; charset=utf-8',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.pdf': 'application/pdf',
+}
+
+function localTextbooks() {
+  const middleware = (req, res, next) => {
+    try {
+      const requestPath = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '')
+      const filePath = resolve(textbookRoot, requestPath)
+      if (filePath !== textbookRoot && !filePath.startsWith(`${textbookRoot}${sep}`)) return next()
+      if (!existsSync(filePath) || !statSync(filePath).isFile()) return next()
+      res.setHeader('Content-Type', contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream')
+      res.setHeader('Cache-Control', extname(filePath).toLowerCase() === '.json' ? 'no-cache' : 'public, max-age=86400')
+      createReadStream(filePath).pipe(res)
+    } catch {
+      next()
+    }
+  }
+  return {
+    name: 'local-textbooks',
+    configureServer(server) { server.middlewares.use('/textbooks', middleware) },
+    configurePreviewServer(server) { server.middlewares.use('/textbooks', middleware) },
+  }
+}
 
 export default defineConfig({
   base: './',
@@ -9,6 +41,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    localTextbooks(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
@@ -23,7 +56,7 @@ export default defineConfig({
       manifest: {
         name: '小译同学 · 英语同步练',
         short_name: '小译同学',
-        description: '面向小学生的译林版英语同步练习工具',
+        description: '家庭局域网使用的译林版英语课本点读与原句练习工具',
         display: 'standalone',
         start_url: '.',
         scope: '.',

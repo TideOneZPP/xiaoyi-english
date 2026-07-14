@@ -1,387 +1,396 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Check, ChevronDown, CircleHelp, ExternalLink, Headphones, Home, Lightbulb, Menu, RotateCcw, Sparkles, Square, Star, Trophy, Volume2, X } from 'lucide-react'
-import { books, editionByBook, getUnits, officialTextbookByBook } from './curriculum'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  BookOpen,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  GraduationCap,
+  Highlighter,
+  Library,
+  List,
+  Menu,
+  Minus,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Square,
+  Volume2,
+  WifiOff,
+  X,
+} from 'lucide-react'
 import { prepareSpeechText } from './speech'
 
-const STORAGE_KEY = 'xiaoyi-learning-progress-v2'
-
-function getStoredProgress() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {} } catch { return {} }
-}
+const CATALOG_URL = '/textbooks/data/catalog.json'
+const PAGE_KEY = 'xiaoyi-textbook-position-v1'
 
 function speak(text, onEnd) {
-  if (!('speechSynthesis' in window)) { onEnd?.(); return }
+  if (!text || !('speechSynthesis' in window)) { onEnd?.(); return }
   window.speechSynthesis.cancel()
-  const speechText = prepareSpeechText(text)
-  const sentences = (speechText.match(/[^.!?]+[.!?]?/g) || [speechText]).map(item => item.trim()).filter(Boolean)
-  const chunks = sentences.flatMap(sentence => sentence.length <= 180 ? [sentence] : (sentence.match(/.{1,180}(?:\s|$)/g) || [sentence]).map(item => item.trim()))
+  const prepared = prepareSpeechText(text)
+  const chunks = (prepared.match(/[^.!?]+[.!?]?/g) || [prepared])
+    .map(item => item.trim())
+    .filter(Boolean)
+    .flatMap(item => item.length <= 180 ? [item] : (item.match(/.{1,180}(?:\s|$)/g) || [item]))
   const voices = window.speechSynthesis.getVoices()
-  const voice = voices.find(item => item.lang.toLowerCase().startsWith('en-gb')) || voices.find(item => item.lang.toLowerCase().startsWith('en'))
-  let current = 0
-  const playNext = () => {
-    if (current >= chunks.length) { onEnd?.(); return }
-    const utterance = new SpeechSynthesisUtterance(chunks[current++])
+  const voice = voices.find(item => item.lang.toLowerCase().startsWith('en-gb'))
+    || voices.find(item => item.lang.toLowerCase().startsWith('en'))
+  let index = 0
+  const next = () => {
+    if (index >= chunks.length) { onEnd?.(); return }
+    const utterance = new SpeechSynthesisUtterance(chunks[index++])
     utterance.lang = 'en-GB'
     utterance.rate = 0.78
-    utterance.pitch = 1.05
+    utterance.pitch = 1.03
     if (voice) utterance.voice = voice
-    utterance.onend = playNext
+    utterance.onend = next
     utterance.onerror = () => onEnd?.()
     window.speechSynthesis.speak(utterance)
   }
-  playNext()
+  next()
 }
 
-function Mascot({ mood = 'happy', small = false }) {
+function assetPath(pattern, page) {
+  return pattern.replace('{page}', String(page).padStart(3, '0'))
+}
+
+function storedPosition() {
+  try { return JSON.parse(localStorage.getItem(PAGE_KEY)) || {} } catch { return {} }
+}
+
+function LoadingScreen() {
   return (
-    <div className={`mascot mascot--${mood} ${small ? 'mascot--small' : ''}`} aria-label="小译同学吉祥物">
-      <span className="mascot-ear left" /><span className="mascot-ear right" />
-      <span className="mascot-face"><i className="eye left" /><i className="eye right" /><i className="mouth" /></span>
-      {!small && <span className="mascot-book">ABC</span>}
-    </div>
+    <main className="status-screen">
+      <div className="status-mark"><BookOpen /></div>
+      <span>正在打开本地教材</span>
+      <h1>把课本摊开来。</h1>
+      <p>正在读取8册教材的数据包和点读文字层。</p>
+      <i className="loading-line"><b /></i>
+    </main>
   )
 }
 
-function Sidebar({ activeUnit, onUnit, book, onBook, currentUnits, isOpen, close }) {
+function SetupScreen({ error }) {
   return (
-    <aside className={`sidebar ${isOpen ? 'is-open' : ''}`}>
-      <div className="brand"><span className="brand-mark">译</span><div><strong>小译同学</strong><small>英语同步练</small></div></div>
-      <button className="mobile-close" onClick={close} aria-label="关闭目录"><X size={22} /></button>
-      <button className="home-link"><Home size={19} /><span>学习首页</span></button>
-      <div className="book-label">我的课本</div>
-      <label className="book-select">
-        <BookOpen size={18} />
-        <select value={book} onChange={e => onBook(e.target.value)} aria-label="选择课本">
-          {books.map(item => <option key={item}>{item}</option>)}
-        </select>
-        <ChevronDown size={16} />
-      </label>
-      <span className="edition-badge">{editionByBook[book]}</span>
-      <div className="units-list">
-        {currentUnits.map((unit, index) => (
-          <button key={unit.id} className={`unit-link ${activeUnit.id === unit.id ? 'active' : ''}`} onClick={() => (onUnit(unit), close())}>
-            <span className="unit-number" style={{ '--unit': unit.color }}>{index + 1}</span>
-            <span><strong>Unit {unit.number} · {unit.title}</strong><small>{unit.zh}</small></span>
+    <main className="status-screen setup-screen">
+      <div className="status-mark warning"><WifiOff /></div>
+      <span>本地教材没有连接</span>
+      <h1>请从家里的电脑打开。</h1>
+      <p>教材PDF只保存在家庭电脑中，公开网页不会携带课本内容。</p>
+      <div className="setup-card">
+        <div><b>1</b><span><strong>电脑双击“启动学习.bat”</strong><small>保持命令窗口开启。</small></span></div>
+        <div><b>2</b><span><strong>iPad连接同一个Wi-Fi</strong><small>打开命令窗口显示的局域网地址。</small></span></div>
+        <div><b>3</b><span><strong>选择课本，直接点读</strong><small>所有词句和练习均来自本地PDF。</small></span></div>
+      </div>
+      {error && <code className="setup-error">{error}</code>}
+    </main>
+  )
+}
+
+function Bookshelf({ books, activeBook, chooseBook, page, choosePage, open, close }) {
+  return (
+    <aside className={`bookshelf ${open ? 'open' : ''}`}>
+      <header className="shelf-brand">
+        <span className="brand-stamp">译</span>
+        <div><strong>小译同学</strong><small>本地课本点读</small></div>
+        <button className="shelf-close" onClick={close} aria-label="关闭书架"><X /></button>
+      </header>
+      <p className="shelf-label"><Library size={14} /> 我的8册课本</p>
+      <div className="book-stack">
+        {books.map(book => (
+          <button key={book.id} className={`book-spine ${book.id === activeBook.id ? 'active' : ''}`} onClick={() => { chooseBook(book); close() }}>
+            <img src={book.cover} alt="" />
+            <span><strong>{book.label}</strong><small>{book.edition}</small></span>
+            {book.id === activeBook.id && <i>正在读</i>}
           </button>
         ))}
       </div>
-      <a className="guide-link" href={`${import.meta.env.BASE_URL}guide.html`}><CircleHelp size={17} /> 使用说明</a>
-      <div className="sidebar-tip"><Sparkles size={18} /><p><strong>今天也要开口说</strong><br />每天 10 分钟，英语更自信。</p></div>
+      <div className="unit-shelf">
+        <p className="shelf-label"><List size={14} /> 本册目录</p>
+        <button className={page === 1 ? 'active' : ''} onClick={() => { choosePage(1); close() }}>封面与目录</button>
+        {activeBook.units.map(unit => (
+          <button key={`${activeBook.id}-${unit.number}`} className={page >= unit.startPage && page <= unit.endPage ? 'active' : ''} onClick={() => { choosePage(unit.startPage); close() }}>
+            <b>U{unit.number}</b><span>{unit.title}</span><small>P{unit.startPage}</small>
+          </button>
+        ))}
+      </div>
+      <footer className="shelf-note"><Sparkles size={16} /><span>所有教学数据来自当前8册PDF<a href="./guide.html" target="_blank" rel="noreferrer">查看使用说明</a></span></footer>
     </aside>
   )
 }
 
-function Topbar({ openMenu, stars, learnedSteps }) {
-  const today = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(new Date())
+function ReaderToolbar({ book, unit, page, pageCount, setPage, zoom, setZoom, pointMode, setPointMode, openShelf }) {
+  const [pageInput, setPageInput] = useState(String(page))
+  useEffect(() => setPageInput(String(page)), [page])
+  const submitPage = event => {
+    event.preventDefault()
+    const next = Math.min(pageCount, Math.max(1, Number.parseInt(pageInput, 10) || page))
+    setPage(next)
+  }
   return (
-    <header className="topbar">
-      <button className="menu-button" onClick={openMenu} aria-label="打开目录"><Menu /></button>
-      <span className="today">{today} · 今日学习</span>
-      <div className="top-stats">
-        <span className="streak"><Check size={18} /> 已学 {learnedSteps} 关</span>
-        <span className="stars"><Star size={19} fill="currentColor" /> {stars}</span>
-        <span className="avatar">小</span>
+    <header className="reader-toolbar">
+      <button className="shelf-toggle" onClick={openShelf} aria-label="打开书架"><Menu /></button>
+      <div className="reader-title">
+        <span>{book.label} · {book.edition}</span>
+        <strong>{unit ? `Unit ${unit.number} · ${unit.title}` : '封面与课本目录'}</strong>
+      </div>
+      <nav className="page-controls" aria-label="翻页">
+        <button onClick={() => setPage(page - 1)} disabled={page <= 1} aria-label="上一页"><ChevronLeft /></button>
+        <form onSubmit={submitPage}><input value={pageInput} onChange={event => setPageInput(event.target.value)} inputMode="numeric" aria-label="页码" /><span>/ {pageCount}</span></form>
+        <button onClick={() => setPage(page + 1)} disabled={page >= pageCount} aria-label="下一页"><ChevronRight /></button>
+      </nav>
+      <div className="reader-tools">
+        <button onClick={() => setZoom(Math.max(.8, +(zoom - .1).toFixed(1)))} disabled={zoom <= .8} aria-label="缩小"><Minus /></button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(Math.min(1.6, +(zoom + .1).toFixed(1)))} disabled={zoom >= 1.6} aria-label="放大"><Plus /></button>
+        <button className={`point-toggle ${pointMode ? 'active' : ''}`} onClick={() => setPointMode(value => !value)} aria-pressed={pointMode}><Highlighter /> 点读提示</button>
       </div>
     </header>
   )
 }
 
-function UnitHero({ unit, book, progress, onStart }) {
-  const completed = progress?.completed || 0
-  const percent = Math.round(completed / unit.activities.length * 100)
-  return (
-    <section className="unit-hero" style={{ '--unit': unit.color }}>
-      <div className="hero-copy">
-        <div className="breadcrumb">{book} · {unit.edition} <span>/</span> Unit {unit.number}</div>
-        <span className="unit-kicker">UNIT {String(unit.number).padStart(2, '0')}</span>
-        <h1>{unit.title}</h1>
-        <p>{unit.zh} · 本单元重点：<b>{unit.focus}</b></p>
-        <div className="hero-actions">
-          <button className="primary-button" onClick={onStart}>{completed ? '继续练习' : '开始学习'} <span>→</span></button>
-          <div className="unit-progress"><span><b>{percent}%</b> 已完成</span><i><em style={{ width: `${percent}%` }} /></i></div>
-        </div>
-      </div>
-      <div className="hero-scene" aria-hidden="true">
-        <span className="speech-card">{unit.focus.split(' / ')[0]} <i>★</i></span>
-        <Mascot />
-        <span className="pencil">✎</span><span className="paper-plane">➤</span>
-      </div>
-    </section>
-  )
-}
-
-function WordShelf({ unit }) {
-  const [playing, setPlaying] = useState('')
-  return (
-    <section className="section-block">
-      <div className="section-heading"><div><span>WORDS</span><h2>本单元词语</h2></div><p>点一下，听标准发音</p></div>
-      <div className="word-grid">
-        {unit.words.map(word => (
-          <button key={word.en} className={`word-tile ${playing === word.en ? 'playing' : ''}`} onClick={() => { setPlaying(word.en); speak(word.en, () => setPlaying('')) }}>
-            <span className="word-emoji">{word.emoji}</span>
-            <span><strong>{word.en}</strong><small>{word.zh}</small></span>
-            <Volume2 size={18} />
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function TextbookReader({ unit, book }) {
-  const [playingAll, setPlayingAll] = useState(false)
-  const [playingLine, setPlayingLine] = useState(-1)
-  const readerLines = [...unit.words.map(word => word.en), ...unit.focus.split(' / ')]
-
-  useEffect(() => {
-    setPlayingAll(false)
-    setPlayingLine(-1)
-    window.speechSynthesis?.cancel()
-  }, [unit.id])
-
-  const playAll = () => {
-    if (playingAll) {
-      window.speechSynthesis?.cancel()
-      setPlayingAll(false)
-      return
-    }
-    setPlayingLine(-1)
-    setPlayingAll(true)
-    speak(readerLines.join(' '), () => setPlayingAll(false))
-  }
-
+function TextbookPage({ book, page, pageData, zoom, pointMode }) {
+  const [activeLine, setActiveLine] = useState(-1)
+  const [loadedImage, setLoadedImage] = useState('')
+  const imageUrl = assetPath(book.pageImagePattern, page)
+  const imageReady = loadedImage === imageUrl
+  useEffect(() => { setActiveLine(-1); window.speechSynthesis?.cancel() }, [book.id, page])
   const playLine = (line, index) => {
-    setPlayingAll(false)
-    setPlayingLine(index)
-    speak(line, () => setPlayingLine(-1))
+    setActiveLine(index)
+    speak(line.text, () => setActiveLine(-1))
   }
-
   return (
-    <section className="section-block textbook-reader">
-      <div className="section-heading">
-        <div><span>READ & LISTEN</span><h2>同步点读</h2></div>
-        <p>点扬声器直接听；长按选中文字也能朗读</p>
-      </div>
-      <div className="reader-toolbar">
-        <span className="reader-source">当前：同步核心词句</span>
-        <div className="reader-actions">
-          <a className="official-textbook-link" href={officialTextbookByBook[book]} target="_blank" rel="noreferrer"><BookOpen size={16} /> 国家平台正版教材 <ExternalLink size={13} /></a>
-          <button className={`reader-play-all ${playingAll ? 'playing' : ''}`} onClick={playAll}>
-            {playingAll ? <Square size={16} fill="currentColor" /> : <Volume2 size={18} />}{playingAll ? '停止播放' : '全部播放'}
-          </button>
+    <section className="page-stage" aria-label={`课本第${page}页`}>
+      <div className="desk-ruler"><span>{book.label}</span><b>PAGE {String(page).padStart(3, '0')}</b></div>
+      <div className="page-scroll">
+        <div
+          className={`textbook-page ${imageReady ? 'ready' : ''}`}
+          style={{ '--page-width': `${Math.round(790 * zoom)}px`, '--zoom-percent': `${zoom * 100}%`, '--reader-zoom': zoom }}
+        >
+          <img src={imageUrl} alt={`${book.label}第${page}页`} onLoad={() => setLoadedImage(imageUrl)} />
+          {pageData && (
+            <div className={`ocr-layer ${pointMode ? 'show-guides' : ''}`} aria-label="可点读英文文字层">
+              {pageData.lines.map((line, index) => (
+                <span
+                  key={`${page}-${index}-${line.text}`}
+                  className={`ocr-line ${activeLine === index ? 'playing' : ''}`}
+                  style={{ left: `${line.x * 100}%`, top: `${line.y * 100}%`, width: `${line.width * 100}%`, height: `${Math.max(line.height * 100, 1.1)}%`, fontSize: `${Math.max(line.height * 82, .72)}cqw` }}
+                  role="button"
+                  tabIndex={0}
+                  title={line.text}
+                  onClick={() => playLine(line, index)}
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') playLine(line, index) }}
+                >{line.text}</span>
+              ))}
+            </div>
+          )}
+          {!imageReady && <div className="page-loading">正在翻到第 {page} 页…</div>}
         </div>
       </div>
-      <div className="reader-lines">
-        {readerLines.map((line, index) => (
-          <div key={`${line}-${index}`} className={`reader-line ${playingLine === index ? 'playing' : ''}`}>
-            <span>{index < unit.words.length ? 'WORD' : 'LINE'}</span><strong>{line}</strong>
-            <button onClick={() => playLine(line, index)} aria-label={`朗读 ${line}`}><Volume2 size={18} /></button>
-          </div>
+      <p className="page-help"><Highlighter size={16} /> 黄色区域可以直接点读；也可以长按拖动选择英文，再点“朗读选中内容”。</p>
+    </section>
+  )
+}
+
+function SourcePill({ page }) {
+  return <small className="source-pill">课本 P{page}</small>
+}
+
+function WordPractice({ words }) {
+  const [playing, setPlaying] = useState('')
+  if (!words.length) return <p className="practice-empty">本单元暂时没有达到可信度要求的词汇数据。</p>
+  return (
+    <div className="practice-words">
+      {words.slice(0, 12).map(word => (
+        <button key={`${word.text}-${word.page}`} className={playing === word.text ? 'playing' : ''} onClick={() => { setPlaying(word.text); speak(word.text, () => setPlaying('')) }}>
+          <Volume2 /><span><strong>{word.text}</strong><SourcePill page={word.page} /></span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ListenPractice({ lines }) {
+  const options = lines.slice(0, 3)
+  const answer = options[0]
+  const [selected, setSelected] = useState('')
+  if (options.length < 2) return <p className="practice-empty">可用的高可信度句子不足，暂不自动出题。</p>
+  return (
+    <div className="quiz-block">
+      <button className="listen-source" onClick={() => speak(answer.text)}><span><Volume2 /></span><strong>播放课本原句</strong><small>可以多听几遍</small></button>
+      <div className="quiz-options">
+        {[...options].sort((a, b) => a.text.localeCompare(b.text)).map(option => (
+          <button key={option.text} className={selected ? (option.text === answer.text ? 'correct' : selected === option.text ? 'wrong' : '') : ''} disabled={Boolean(selected)} onClick={() => setSelected(option.text)}>
+            <span>{option.text}</span><SourcePill page={option.page} />
+          </button>
         ))}
       </div>
-      <p className="reader-selection-tip">在英文上长按并拖动选择，页面底部会出现“朗读选中内容”。</p>
-    </section>
+      {selected && <p className={`quiz-feedback ${selected === answer.text ? 'correct' : 'wrong'}`}>{selected === answer.text ? <><Check /> 听对了！</> : <><CircleAlert /> 再听一次课本原句。</>}</p>}
+    </div>
+  )
+}
+
+function FillPractice({ lines, words }) {
+  const sentence = lines.find(item => (item.text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []).length >= 5)
+  const sentenceWords = sentence?.text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []
+  const target = sentenceWords.filter(word => word.length >= 4).sort((a, b) => b.length - a.length)[0]
+  const distractors = words.map(item => item.text).filter(word => target && word.toLowerCase() !== target.toLowerCase()).slice(0, 2)
+  const options = target ? [target, ...distractors].sort((a, b) => a.localeCompare(b)) : []
+  const [selected, setSelected] = useState('')
+  if (!sentence || !target || options.length < 3) return <p className="practice-empty">本单元没有足够可靠的数据生成补全题。</p>
+  const prompt = sentence.text.replace(new RegExp(`\\b${target}\\b`, 'i'), '______')
+  return (
+    <div className="quiz-block fill-quiz">
+      <p className="source-sentence">{prompt}</p>
+      <SourcePill page={sentence.page} />
+      <div className="word-options">
+        {options.map(option => <button key={option} disabled={Boolean(selected)} className={selected ? (option === target ? 'correct' : selected === option ? 'wrong' : '') : ''} onClick={() => setSelected(option)}>{option}</button>)}
+      </div>
+      {selected && <p className={`quiz-feedback ${selected === target ? 'correct' : 'wrong'}`}>{selected === target ? <><Check /> 填对了：{sentence.text}</> : <><CircleAlert /> 看看课本第 {sentence.page} 页再试试。</>}</p>}
+    </div>
+  )
+}
+
+function OrderPractice({ lines }) {
+  const source = lines.find(item => {
+    const count = (item.text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []).length
+    return count >= 4 && count <= 9
+  })
+  const answer = source?.text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []
+  const scrambled = useMemo(() => answer.map((word, index) => ({ word, id: index })).sort((a, b) => ((a.id * 7 + 3) % answer.length) - ((b.id * 7 + 3) % answer.length)), [source?.text])
+  const [chosen, setChosen] = useState([])
+  const complete = chosen.length === answer.length
+  const correct = complete && chosen.map(item => item.word.toLowerCase()).join(' ') === answer.map(item => item.toLowerCase()).join(' ')
+  if (!source) return <p className="practice-empty">本单元没有适合排列的高可信度原句。</p>
+  return (
+    <div className="quiz-block order-quiz">
+      <div className="order-answer">{chosen.length ? chosen.map(item => <button key={item.id} onClick={() => setChosen(current => current.filter(value => value.id !== item.id))}>{item.word}</button>) : <span>按课本原句顺序点选单词</span>}</div>
+      <div className="order-words">{scrambled.filter(item => !chosen.some(value => value.id === item.id)).map(item => <button key={item.id} onClick={() => setChosen(current => [...current, item])}>{item.word}</button>)}</div>
+      <div className="order-actions"><SourcePill page={source.page} /><button onClick={() => setChosen([])}><RotateCcw /> 重新排列</button></div>
+      {complete && <p className={`quiz-feedback ${correct ? 'correct' : 'wrong'}`}>{correct ? <><Check /> 顺序正确！</> : <><CircleAlert /> 顺序还不对，点上面的词撤回。</>}</p>}
+    </div>
+  )
+}
+
+function PracticePanel({ book, unit }) {
+  const [mode, setMode] = useState('words')
+  useEffect(() => setMode('words'), [book.id, unit?.number])
+  if (!unit) {
+    return (
+      <aside className="practice-panel empty-panel">
+        <GraduationCap />
+        <h2>先进入一个 Unit</h2>
+        <p>练习只会使用该单元PDF中识别可靠的词句。</p>
+      </aside>
+    )
+  }
+  const lines = unit.lines || []
+  const words = unit.words || []
+  return (
+    <aside className="practice-panel">
+      <header><span>TEXTBOOK PRACTICE</span><h2>课本原句练习</h2><p>Unit {unit.number} · P{unit.startPage}-{unit.endPage}</p></header>
+      <nav className="practice-tabs">
+        {[['words', '点词跟读'], ['listen', '听音辨句'], ['fill', '原句补全'], ['order', '句子排序']].map(([value, label]) => <button key={value} className={mode === value ? 'active' : ''} onClick={() => setMode(value)}>{label}</button>)}
+      </nav>
+      <div className="practice-body" key={`${book.id}-${unit.number}-${mode}`}>
+        {mode === 'words' && <WordPractice words={words} />}
+        {mode === 'listen' && <ListenPractice lines={lines} />}
+        {mode === 'fill' && <FillPractice lines={lines} words={words} />}
+        {mode === 'order' && <OrderPractice lines={lines} />}
+      </div>
+      <footer><Check /> 每道题都标注课本页码，可以随时翻回原页核对。</footer>
+    </aside>
   )
 }
 
 function SelectionSpeaker() {
   const [selectedText, setSelectedText] = useState('')
   const [playing, setPlaying] = useState(false)
-
   useEffect(() => {
-    const rememberSelection = () => {
+    const remember = () => {
       const selection = window.getSelection()
       const text = selection?.toString().replace(/\s+/g, ' ').trim() || ''
-      const node = selection?.anchorNode
-      const element = node?.nodeType === 1 ? node : node?.parentElement
-      if (text && /[A-Za-z]/.test(text) && !element?.closest('input, textarea')) setSelectedText(text.slice(0, 800))
+      if (text && /[A-Za-z]/.test(text)) setSelectedText(text.slice(0, 800))
     }
-    document.addEventListener('selectionchange', rememberSelection)
-    return () => document.removeEventListener('selectionchange', rememberSelection)
+    document.addEventListener('selectionchange', remember)
+    return () => document.removeEventListener('selectionchange', remember)
   }, [])
-
   if (!selectedText) return null
-  const toggle = () => {
-    if (playing) {
-      window.speechSynthesis?.cancel()
-      setPlaying(false)
-      return
-    }
-    setPlaying(true)
-    speak(selectedText, () => setPlaying(false))
-  }
-
   return (
     <div className="selection-speaker" role="status">
-      <span>已选中：{selectedText.length > 38 ? `${selectedText.slice(0, 38)}…` : selectedText}</span>
-      <button className={playing ? 'playing' : ''} onMouseDown={event => event.preventDefault()} onClick={toggle}>{playing ? <Square size={15} fill="currentColor" /> : <Volume2 size={17} />}{playing ? '停止' : '朗读选中内容'}</button>
-      <button className="selection-close" aria-label="关闭选中内容朗读" onClick={() => { window.speechSynthesis?.cancel(); setPlaying(false); setSelectedText('') }}><X size={16} /></button>
+      <span>已选中：{selectedText.length > 42 ? `${selectedText.slice(0, 42)}…` : selectedText}</span>
+      <button onMouseDown={event => event.preventDefault()} onClick={() => { if (playing) { window.speechSynthesis.cancel(); setPlaying(false) } else { setPlaying(true); speak(selectedText, () => setPlaying(false)) } }}>{playing ? <Square /> : <Volume2 />}{playing ? '停止' : '朗读选中内容'}</button>
+      <button className="selection-close" aria-label="关闭" onClick={() => { window.speechSynthesis?.cancel(); setPlaying(false); setSelectedText('') }}><X /></button>
     </div>
   )
-}
-
-function LessonPath({ unit, progress, onStep }) {
-  const labels = unit.activities.map(item => item.label)
-  return (
-    <section className="section-block practice-section">
-      <div className="section-heading"><div><span>PRACTICE</span><h2>闯关练习</h2></div><p>完成 {unit.activities.length} 关，收集一枚单元徽章</p></div>
-      <div className="lesson-path" style={{ '--steps': unit.activities.length }}>
-        <div className="path-line" />
-        {labels.map((label, index) => {
-          const done = index < (progress?.completed || 0)
-          const current = index === (progress?.completed || 0)
-          return (
-            <button key={label} className={`path-step ${done ? 'done' : ''} ${current ? 'current' : ''}`} onClick={() => (done || current) && onStep(index)} disabled={!done && !current}>
-              <span className="path-bubble">{done ? <Check size={23} /> : index + 1}</span>
-              <strong>{label}</strong><small>{done ? '已完成' : current ? '+ 2 颗星' : '完成上一关解锁'}</small>
-            </button>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-function Feedback({ correct, hint }) {
-  return (
-    <div className={`feedback ${correct ? 'correct' : 'wrong'}`} role="status">
-      <span>{correct ? '🎉' : '💡'}</span>
-      <div><strong>{correct ? '答对啦，真棒！' : '再想一想'}</strong><p>{correct ? '你已经掌握这一题了。' : hint || '看看提示，再试一次吧。'}</p></div>
-    </div>
-  )
-}
-
-function Exercise({ unit, index, onClose, onComplete }) {
-  const item = unit.activities[index]
-  const [selected, setSelected] = useState('')
-  const [input, setInput] = useState('')
-  const [ordered, setOrdered] = useState([])
-  const [checked, setChecked] = useState(false)
-  const [correct, setCorrect] = useState(false)
-
-  useEffect(() => { setSelected(''); setInput(''); setOrdered([]); setChecked(false); setCorrect(false) }, [index, unit.id])
-
-  const check = () => {
-    let isCorrect = false
-    if (item.type === 'choice' || item.type === 'listen' || item.type === 'read') isCorrect = selected === item.answer
-    if (item.type === 'fill') isCorrect = [item.answer, ...(item.alternatives || [])].some(answer => answer.toLowerCase() === input.trim().toLowerCase())
-    if (item.type === 'order') isCorrect = ordered.join(' ') === item.answer.join(' ')
-    setCorrect(isCorrect); setChecked(true)
-  }
-
-  const canCheck = selected || input.trim() || ordered.length === item?.words?.length
-  const stepLabel = item.label
-
-  return (
-    <div className="lesson-overlay">
-      <div className="lesson-shell">
-        <header className="lesson-header">
-          <button onClick={onClose} aria-label="返回单元"><ArrowLeft /></button>
-          <div className="lesson-progress"><i><em style={{ width: `${(index + 1) / unit.activities.length * 100}%` }} /></i><span>{index + 1} / {unit.activities.length}</span></div>
-          <span className="lesson-stars"><Star size={18} fill="currentColor" /> 每关 +2</span>
-        </header>
-        <main className="exercise-card">
-          <div className="exercise-label">第 {index + 1} 关 · {stepLabel}</div>
-          {item.type === 'word' && (
-            <div className="word-exercise">
-              <p className="instruction">逐个听一听，跟着大声读</p>
-              <div className="word-practice-grid">
-                {item.words.map(word => <button key={word.en} onClick={() => speak(word.en)}><span>{word.emoji}</span><strong>{word.en}</strong><small>{word.zh}</small><Volume2 size={17} /></button>)}
-              </div>
-              <button className="record-button" onClick={() => { setCorrect(true); setChecked(true) }}><Check /> 4 个词都跟读好了</button>
-            </div>
-          )}
-          {item.type === 'choice' && (
-            <div className="question-exercise">
-              <p className="instruction">{item.prompt}</p>
-              <div className="scene-illustration"><span>👩‍🏫</span><i>🌤️</i><span>🧒</span></div>
-              <div className="options">{item.options.map((option, i) => <button key={option} disabled={checked} className={`${selected === option ? 'selected' : ''} ${checked && option === item.answer ? 'answer' : ''}`} onClick={() => setSelected(option)}><kbd>{String.fromCharCode(65 + i)}</kbd>{option}</button>)}</div>
-            </div>
-          )}
-          {item.type === 'listen' && (
-            <div className="question-exercise listen-exercise">
-              <p className="instruction">{item.prompt}</p>
-              <button className="listen-button" onClick={() => speak(item.speech)}><span><Headphones /></span><strong>播放听力</strong><small>可以多听几遍</small></button>
-              <div className="options">{item.options.map((option, i) => <button key={option} disabled={checked} className={`${selected === option ? 'selected' : ''} ${checked && option === item.answer ? 'answer' : ''}`} onClick={() => setSelected(option)}><kbd>{String.fromCharCode(65 + i)}</kbd>{option}</button>)}</div>
-            </div>
-          )}
-          {item.type === 'fill' && (
-            <div className="question-exercise fill-exercise">
-              <p className="instruction">{item.prompt}</p>
-              <div className="dialogue"><span>🧒</span><p>{item.before}<input autoFocus value={input} onChange={e => setInput(e.target.value)} disabled={checked} aria-label="填写答案" />{item.after}</p></div>
-              <div className="hint"><Lightbulb size={18} /><span>{item.hint}</span></div>
-            </div>
-          )}
-          {item.type === 'order' && (
-            <div className="question-exercise order-exercise">
-              <p className="instruction">{item.prompt}</p>
-              <div className="answer-slots">{ordered.length ? ordered.map((word, i) => <button key={`${word}-${i}`} onClick={() => !checked && setOrdered(ordered.filter((_, j) => j !== i))}>{word}</button>) : <span>点下面的单词，组成句子</span>}</div>
-              <div className="word-chips">{item.words.map((word, i) => { const used = ordered.filter(x => x === word).length >= item.words.slice(0, i + 1).filter(x => x === word).length; return <button key={`${word}-${i}`} disabled={used || checked} onClick={() => setOrdered([...ordered, word])}>{word}</button> })}</div>
-              {ordered.length > 0 && !checked && <button className="reset-order" onClick={() => setOrdered([])}><RotateCcw size={15} /> 重新排列</button>}
-            </div>
-          )}
-          {item.type === 'read' && (
-            <div className="question-exercise read-exercise">
-              <p className="instruction">{item.prompt}</p>
-              <div className="reading-passage"><BookOpen size={24} /><p>{item.passage}</p></div>
-              <div className="options">{item.options.map((option, i) => <button key={option} disabled={checked} className={`${selected === option ? 'selected' : ''} ${checked && option === item.answer ? 'answer' : ''}`} onClick={() => setSelected(option)}><kbd>{String.fromCharCode(65 + i)}</kbd>{option}</button>)}</div>
-            </div>
-          )}
-          {checked && <Feedback correct={correct} hint={item.tip || item.hint} />}
-          <div className="exercise-footer">
-            {!checked && item.type !== 'word' && <button className="check-button" disabled={!canCheck} onClick={check}>检查答案</button>}
-            {checked && !correct && <button className="check-button retry" onClick={() => { setChecked(false); setSelected(''); setInput(''); setOrdered([]) }}>再试一次</button>}
-            {checked && correct && <button className="check-button next" onClick={onComplete}>{index === unit.activities.length - 1 ? '完成本单元' : '下一关'} <span>→</span></button>}
-          </div>
-        </main>
-      </div>
-    </div>
-  )
-}
-
-function Celebration({ unit, onClose }) {
-  return <div className="celebration"><div className="celebration-card"><span className="confetti">✦　★　✦</span><Trophy size={70} /><h2>Unit {unit.number} 闯关成功！</h2><p>你完成了 <b>{unit.activities.length}</b> 个练习，收集了 <b>{unit.activities.length * 2} 颗星星</b>。</p><div className="badge">{unit.emoji}<span>单元小达人</span></div><button className="primary-button" onClick={onClose}>返回学习地图</button></div></div>
 }
 
 export default function App() {
-  const [book, setBook] = useState('三年级上册')
-  const [activeUnit, setActiveUnit] = useState(getUnits('三年级上册')[0])
-  const [progress, setProgress] = useState(getStoredProgress)
-  const [lesson, setLesson] = useState(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [celebrating, setCelebrating] = useState(false)
-  const currentUnits = getUnits(book)
-  const unitProgress = progress[activeUnit.id] || { completed: 0 }
-  const learnedSteps = useMemo(() => Object.values(progress).reduce((sum, item) => sum + (item.completed || 0), 0), [progress])
-  const stars = learnedSteps * 2
+  const [catalog, setCatalog] = useState(null)
+  const [loadError, setLoadError] = useState('')
+  const [bookId, setBookId] = useState('')
+  const [page, setPageState] = useState(1)
+  const [pageData, setPageData] = useState(null)
+  const [pageError, setPageError] = useState('')
+  const [zoom, setZoom] = useState(1)
+  const [pointMode, setPointMode] = useState(true)
+  const [shelfOpen, setShelfOpen] = useState(false)
+  const readerTop = useRef(null)
 
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)) }, [progress])
+  useEffect(() => {
+    fetch(CATALOG_URL, { cache: 'no-store' })
+      .then(response => { if (!response.ok) throw new Error(`教材数据包返回 ${response.status}`); return response.json() })
+      .then(data => {
+        if (!data.books?.length) throw new Error('教材数据包中没有课本')
+        const saved = storedPosition()
+        const initialBook = data.books.find(item => item.id === saved.bookId) || data.books[0]
+        setCatalog(data)
+        setBookId(initialBook.id)
+        setPageState(Math.min(initialBook.pageCount, Math.max(1, saved.page || initialBook.units?.[0]?.startPage || 1)))
+      })
+      .catch(error => setLoadError(error.message))
+  }, [])
 
-  const completeStep = () => {
-    const next = lesson + 1
-    setProgress(current => ({ ...current, [activeUnit.id]: { completed: Math.max(current[activeUnit.id]?.completed || 0, next) } }))
-    if (next >= activeUnit.activities.length) { setLesson(null); setCelebrating(true) } else setLesson(next)
+  const book = catalog?.books.find(item => item.id === bookId)
+  const unit = book?.units.find(item => page >= item.startPage && page <= item.endPage)
+
+  useEffect(() => {
+    if (!book) return
+    setPageData(null)
+    setPageError('')
+    fetch(assetPath(book.pageDataPattern, page), { cache: 'no-store' })
+      .then(response => { if (!response.ok) throw new Error(`第${page}页点读数据不可用`); return response.json() })
+      .then(setPageData)
+      .catch(error => setPageError(error.message))
+    localStorage.setItem(PAGE_KEY, JSON.stringify({ bookId: book.id, page }))
+  }, [book?.id, page])
+
+  if (loadError) return <SetupScreen error={loadError} />
+  if (!catalog || !book) return <LoadingScreen />
+
+  const setPage = next => {
+    const normalized = Math.min(book.pageCount, Math.max(1, Number(next) || 1))
+    setPageState(normalized)
+    readerTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
-
-  const changeBook = value => {
-    setBook(value)
-    setActiveUnit(getUnits(value)[0])
-    setLesson(null)
-    setCelebrating(false)
+  const chooseBook = nextBook => {
+    setBookId(nextBook.id)
+    setPageState(nextBook.units?.[0]?.startPage || 1)
+    setZoom(1)
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar activeUnit={activeUnit} onUnit={setActiveUnit} book={book} onBook={changeBook} currentUnits={currentUnits} isOpen={menuOpen} close={() => setMenuOpen(false)} />
-      {menuOpen && <button className="menu-backdrop" onClick={() => setMenuOpen(false)} aria-label="关闭目录" />}
-      <div className="content-shell">
-        <Topbar openMenu={() => setMenuOpen(true)} stars={stars} learnedSteps={learnedSteps} />
-        <main className="main-content">
-          <><UnitHero unit={activeUnit} book={book} progress={unitProgress} onStart={() => setLesson(Math.min(unitProgress.completed, activeUnit.activities.length - 1))} /><WordShelf unit={activeUnit} /><TextbookReader unit={activeUnit} book={book} /><LessonPath unit={activeUnit} progress={unitProgress} onStep={setLesson} /></>
+    <div className="textbook-app" ref={readerTop}>
+      <Bookshelf books={catalog.books} activeBook={book} chooseBook={chooseBook} page={page} choosePage={setPage} open={shelfOpen} close={() => setShelfOpen(false)} />
+      {shelfOpen && <button className="shelf-backdrop" onClick={() => setShelfOpen(false)} aria-label="关闭书架" />}
+      <div className="reader-shell">
+        <ReaderToolbar book={book} unit={unit} page={page} pageCount={book.pageCount} setPage={setPage} zoom={zoom} setZoom={setZoom} pointMode={pointMode} setPointMode={setPointMode} openShelf={() => setShelfOpen(true)} />
+        <main className="learning-desk">
+          <TextbookPage book={book} page={page} pageData={pageData} zoom={zoom} pointMode={pointMode} />
+          <PracticePanel book={book} unit={unit} />
         </main>
+        {pageError && <div className="page-error"><CircleAlert /> {pageError}</div>}
       </div>
-      {lesson !== null && <Exercise unit={activeUnit} index={lesson} onClose={() => setLesson(null)} onComplete={completeStep} />}
-      {celebrating && <Celebration unit={activeUnit} onClose={() => setCelebrating(false)} />}
       <SelectionSpeaker />
     </div>
   )
