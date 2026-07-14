@@ -183,22 +183,22 @@
       <div class="hero-copy">
         <span class="eyebrow">FAMILY GUIDE · 家庭使用</span>
         <h1>第一次用，<br />从这里开始。</h1>
-        <p>这是一份给家长的简明说明。电脑负责保存课本，孩子用同一 Wi-Fi 下的 iPad 直接翻页、点读和练习，不需要复制或逐单元填写内容。</p>
-        <div class="hero-meta"><span>无需账号</span><span>无需公网服务器</span><span>教材只存家中电脑</span><span>iPad 屏幕适配</span></div>
+        <p>这是一份给家长的简明说明。教材包导入一次后，孩子只用 iPad 就能翻页、点读和练习，不需要电脑开机，也不需要同一 Wi-Fi。</p>
+        <div class="hero-meta"><span>无需账号</span><span>无需电脑端</span><span>教材只存 iPad</span><span>支持离线</span></div>
       </div>
       <aside class="quick-route" aria-label="首次使用路线">
         <h2>7 分钟上手路线</h2>
-        <div class="route-step"><b>1</b><div><strong>电脑启动工具</strong><small>双击“启动学习.bat”，保持窗口开启。</small></div></div>
-        <div class="route-step"><b>2</b><div><strong>选择课本与单元</strong><small>三至六年级，共 8 册、64 个单元。</small></div></div>
-        <div class="route-step"><b>3</b><div><strong>iPad 直接点读</strong><small>Safari 打开电脑显示的地址，点课页英文听发音。</small></div></div>
-        <p class="route-note">电脑与 iPad 必须连接同一个 Wi-Fi；学习期间电脑和启动窗口需保持开启。</p>
+        <div class="route-step"><b>1</b><div><strong>加入 iPad 主屏幕</strong><small>Safari“共享”→“添加到主屏幕”。</small></div></div>
+        <div class="route-step"><b>2</b><div><strong>从“文件”加入教材包</strong><small>选择一册或多册 .xiaoyi 文件。</small></div></div>
+        <div class="route-step"><b>3</b><div><strong>断网也能点读</strong><small>课页、文字层和练习都从 iPad 本机读取。</small></div></div>
+        <p class="route-note">8 册教材包合计约 154 MB；推荐使用 iPadOS 17 或更高版本。</p>
       </aside>
     </section>
 
     <div class="page-grid">
       <nav class="toc" aria-label="说明目录">
         <strong>说明目录</strong>
-        <a href="#install">连接 iPad</a>
+        <a href="#install">安装与导入</a>
         <a href="#learn">开始学习</a>
         <a href="#reader">同步点读</a>
         <a href="#practice">闯关练习</a>
@@ -209,12 +209,12 @@
 
       <article class="manual">
         <section class="chapter" id="install">
-          <div class="chapter-head"><div class="chapter-icon">▣</div><div><h2>电脑启动，iPad 打开</h2><p>无需部署公网服务器，只使用家里的局域网。</p></div></div>
+          <div class="chapter-head"><div class="chapter-icon">▣</div><div><h2>把工具和课本装进 iPad</h2><p>首次设置完成后，日常学习不需要电脑和网络。</p></div></div>
           <div class="steps">
-            <div class="step"><strong>电脑双击“启动学习.bat”</strong><p>命令窗口会显示一个以 <code>http://</code> 开头、以 <code>:4173</code> 结尾的地址。</p></div>
-            <div class="step"><strong>连接同一个 Wi-Fi</strong><p>确认 iPad 与电脑连接的是同一个家庭路由器，不要使用蜂窝网络或访客网络。</p></div>
-            <div class="step"><strong>iPad Safari 打开显示的地址</strong><p>不要使用微信内置浏览器；Safari 的屏幕适配、选中文字和语音支持更完整。</p></div>
-            <div class="step"><strong>可选：添加到主屏幕</strong><p>点 Safari“共享”→“添加到主屏幕”。以后仍要先在电脑上启动工具。</p></div>
+            <div class="step"><strong>Safari 打开“小译同学”</strong><p>使用公开网址打开程序；教材正文不包含在公开网页中。</p></div>
+            <div class="step"><strong>先添加到主屏幕</strong><p>点 Safari“共享”→“添加到主屏幕”，再从桌面图标打开，以提高离线存储稳定性。</p></div>
+            <div class="step"><strong>把教材包存入“文件”App</strong><p>将需要的 <code>.xiaoyi</code> 文件保存到 iCloud Drive、OneDrive 或“在我的 iPad 上”。</p></div>
+            <div class="step"><strong>从“文件”加入课本</strong><p>首次页面点击导入按钮，可一次选择多册。每册约 18—20 MB。</p></div>
           </div>
         </section>
 
@@ -237,7 +237,7 @@
             <div class="step"><strong>也可以长按选择英文</strong><p>拖动选择范围后，点击页面底部出现的“朗读选中内容”。</p></div>
             <div class="step"><strong>字太小时使用缩放</strong><p>点顶部“＋/－”放大或缩小；放大后课页区域可横向滚动。</p></div>
           </div>
-          <div class="callout blue"><span>⌂</span><p><strong>教材只在家庭局域网读取</strong>PDF、课页图片与 OCR 数据全部保存在家中电脑的 <code>textbooks</code> 目录，不上传 GitHub。</p></div>
+          <div class="callout blue"><span>⌂</span><p><strong>教材只从 iPad 本地读取</strong>导入后的课页图片、OCR 文字层和练习数据保存在 Web App 的本地教材库，不上传 GitHub。</p></div>
         </section>
 
         <section class="chapter" id="practice">
@@ -265,19 +265,21 @@
         </section>
 
         <section class="chapter" id="data">
-          <div class="chapter-head"><div class="chapter-icon">⌂</div><div><h2>数据、隐私与本地使用</h2><p>工具没有账号系统，也没有保存儿童资料的公网服务器。</p></div></div>
+          <div class="chapter-head"><div class="chapter-icon">⌂</div><div><h2>数据、隐私与离线使用</h2><p>工具没有账号系统，也没有保存儿童资料的服务器。</p></div></div>
           <div class="feature-grid">
             <div class="feature"><b>阅读位置</b><p>上次阅读的册次与页码保存在当前浏览器的本地存储中。</p></div>
             <div class="feature"><b>选中内容朗读</b><p>选中的英文只用于当前语音播放，不会上传或保存。</p></div>
-            <div class="feature"><b>教材不上传</b><p>课本 PDF、页面图片和识别数据位于电脑本地，并由 Git 忽略。</p></div>
-            <div class="feature"><b>依赖家庭电脑</b><p>电脑关机、启动窗口关闭或不在同一 Wi-Fi 时，iPad 无法读取教材。</p></div>
+            <div class="feature"><b>教材不上传</b><p>教材包存入 iPad 的 IndexedDB，本地翻页不会向服务器请求课页。</p></div>
+            <div class="feature"><b>真正离线</b><p>添加到主屏幕并完成教材导入后，断网仍可翻页、点读和做题。</p></div>
           </div>
-          <div class="callout"><span>!</span><p><strong>GitHub 页面不包含教材</strong>公开链接只保存程序和说明；完整点读必须从家中电脑显示的局域网地址进入。</p></div>
+          <div class="callout"><span>!</span><p><strong>不要清除“小译同学”的网站数据</strong>清除 Safari 网站数据或删除主屏幕 Web App，可能需要重新导入教材包。</p></div>
         </section>
 
         <section class="chapter" id="faq">
           <div class="chapter-head"><div class="chapter-icon">?</div><div><h2>常见问题</h2><p>遇到问题时先从这里检查。</p></div></div>
-          <details><summary>iPad 打不开电脑显示的地址怎么办？</summary><p>确认电脑启动窗口没有关闭、两台设备连接同一 Wi-Fi，并允许 Windows 防火墙中的“专用网络”访问。访客 Wi-Fi 通常会隔离设备。</p></details>
+          <details><summary>在哪里选择教材包？</summary><p>首次页面点“从‘文件’加入课本”。已经进入书架后，可打开左上角书架，点底部“加入更多课本”。</p></details>
+          <details><summary>导入后还需要电脑吗？</summary><p>不需要。教材已保存在 iPad 本地；电脑可关机，iPad 也不必连接原来的 Wi-Fi。</p></details>
+          <details><summary>教材为什么突然不见了？</summary><p>通常是 Safari 网站数据被清除、主屏幕 Web App 被删除或系统处于存储压力。重新选择原来的 .xiaoyi 教材包即可恢复。</p></details>
           <details><summary>为什么读音与出版社录音略有不同？</summary><p>工具调用 iPad 系统的英式英语合成语音，不是教材出版社的真人配套音频，因此音色、连读和语调可能不同。</p></details>
           <details><summary>为什么有少量黄色框位置或文字不完全准确？</summary><p>黄色文字层由 OCR 自动识别，复杂插图页可能出现漏字或错位。页面图片本身不受影响，可关闭“点读提示”正常阅读。</p></details>
           <details><summary>答错怎么办？</summary><p>练习不会扣分。查看题目所标的课本页码，翻回原页核对后再试。</p></details>

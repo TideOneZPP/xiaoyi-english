@@ -56,7 +56,7 @@ export default defineConfig({
       manifest: {
         name: '小译同学 · 英语同步练',
         short_name: '小译同学',
-        description: '家庭局域网使用的译林版英语课本点读与原句练习工具',
+        description: '在 iPad 本地保存教材、可离线使用的译林版英语点读与原句练习工具',
         display: 'standalone',
         start_url: '.',
         scope: '.',

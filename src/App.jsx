@@ -5,7 +5,9 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  FileUp,
   GraduationCap,
+  HardDrive,
   Highlighter,
   Library,
   List,
@@ -16,13 +18,14 @@ import {
   Sparkles,
   Square,
   Volume2,
-  WifiOff,
   X,
 } from 'lucide-react'
 import { prepareSpeechText } from './speech'
+import { getImportedAsset, getImportedPageData, importTextbookPackage, listImportedBooks, storageEstimate } from './textbookStore'
 
 const CATALOG_URL = '/textbooks/data/catalog.json'
 const PAGE_KEY = 'xiaoyi-textbook-position-v1'
+const IPAD_LIBRARY_ONLY = new URLSearchParams(window.location.search).has('ipad')
 
 function speak(text, onEnd) {
   if (!text || !('speechSynthesis' in window)) { onEnd?.(); return }
@@ -64,30 +67,90 @@ function LoadingScreen() {
       <div className="status-mark"><BookOpen /></div>
       <span>正在打开本地教材</span>
       <h1>把课本摊开来。</h1>
-      <p>正在读取8册教材的数据包和点读文字层。</p>
+      <p>正在读取这台 iPad 中的教材和点读文字层。</p>
       <i className="loading-line"><b /></i>
     </main>
   )
 }
 
-function SetupScreen({ error }) {
+function formatStorage(bytes = 0) {
+  return `${Math.max(0, bytes / 1024 / 1024).toFixed(0)} MB`
+}
+
+function BookImporter({ onImported, compact = false }) {
+  const input = useRef(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const chooseFiles = async event => {
+    const files = [...(event.target.files || [])]
+    event.target.value = ''
+    if (!files.length) return
+    setBusy(true)
+    setError('')
+    const imported = []
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        setMessage(`第 ${index + 1}/${files.length} 册：${files[index].name}`)
+        imported.push(await importTextbookPackage(files[index], setMessage))
+      }
+      const estimate = await storageEstimate()
+      setMessage(`${imported.length} 册已存入 iPad${estimate ? ` · 已用约 ${formatStorage(estimate.usage)}` : ''}`)
+      onImported(imported)
+    } catch (reason) {
+      setError(reason?.message || '教材导入失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={`book-importer ${compact ? 'compact' : ''}`}>
+      <input ref={input} type="file" accept=".xiaoyi" multiple hidden onChange={chooseFiles} />
+      <button type="button" onClick={() => input.current?.click()} disabled={busy}><FileUp />{busy ? '正在存入 iPad…' : compact ? '加入更多课本' : '从“文件”加入课本'}</button>
+      {!compact && <small>可一次选择多册，每册约 18–20 MB。</small>}
+      {message && <p className="import-message"><HardDrive />{message}</p>}
+      {error && <p className="import-error"><CircleAlert />{error}</p>}
+    </div>
+  )
+}
+
+function SetupScreen({ onImported }) {
   return (
     <main className="status-screen setup-screen">
-      <div className="status-mark warning"><WifiOff /></div>
-      <span>本地教材没有连接</span>
-      <h1>请从家里的电脑打开。</h1>
-      <p>教材PDF只保存在家庭电脑中，公开网页不会携带课本内容。</p>
+      <div className="status-mark warning"><HardDrive /></div>
+      <span>iPad 教材库</span>
+      <h1>第一次，把课本装进 iPad。</h1>
+      <p>选择“小译同学”教材包后，课本会保存在这台 iPad 中。以后不需要电脑，也不需要联网。</p>
       <div className="setup-card">
-        <div><b>1</b><span><strong>电脑双击“启动学习.bat”</strong><small>保持命令窗口开启。</small></span></div>
-        <div><b>2</b><span><strong>iPad连接同一个Wi-Fi</strong><small>打开命令窗口显示的局域网地址。</small></span></div>
-        <div><b>3</b><span><strong>选择课本，直接点读</strong><small>所有词句和练习均来自本地PDF。</small></span></div>
+        <div><b>1</b><span><strong>先添加到主屏幕</strong><small>Safari“共享”→“添加到主屏幕”，再从桌面打开。</small></span></div>
+        <div><b>2</b><span><strong>选择 .xiaoyi 教材包</strong><small>从 iPad“文件”中一次选择一册或多册。</small></span></div>
+        <div><b>3</b><span><strong>导入完成即可离线点读</strong><small>教材、文字层和练习都只保存在本机。</small></span></div>
       </div>
-      {error && <code className="setup-error">{error}</code>}
+      <BookImporter onImported={onImported} />
     </main>
   )
 }
 
-function Bookshelf({ books, activeBook, chooseBook, page, choosePage, open, close }) {
+function BookCover({ book }) {
+  const [source, setSource] = useState(book.storage === 'indexeddb' ? '' : book.cover)
+  useEffect(() => {
+    let objectUrl = ''
+    let cancelled = false
+    if (book.storage !== 'indexeddb') { setSource(book.cover); return undefined }
+    setSource('')
+    getImportedAsset(book.id, 'pages/page-001.jpg').then(blob => {
+      objectUrl = URL.createObjectURL(blob)
+      if (cancelled) URL.revokeObjectURL(objectUrl)
+      else setSource(objectUrl)
+    }).catch(() => {})
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [book.id, book.cover, book.storage])
+  return source ? <img src={source} alt="" /> : <span className="cover-placeholder"><BookOpen /></span>
+}
+
+function Bookshelf({ books, activeBook, chooseBook, page, choosePage, open, close, onImported }) {
   return (
     <aside className={`bookshelf ${open ? 'open' : ''}`}>
       <header className="shelf-brand">
@@ -95,11 +158,11 @@ function Bookshelf({ books, activeBook, chooseBook, page, choosePage, open, clos
         <div><strong>小译同学</strong><small>本地课本点读</small></div>
         <button className="shelf-close" onClick={close} aria-label="关闭书架"><X /></button>
       </header>
-      <p className="shelf-label"><Library size={14} /> 我的8册课本</p>
+      <p className="shelf-label"><Library size={14} /> 我的{books.length}册课本</p>
       <div className="book-stack">
         {books.map(book => (
           <button key={book.id} className={`book-spine ${book.id === activeBook.id ? 'active' : ''}`} onClick={() => { chooseBook(book); close() }}>
-            <img src={book.cover} alt="" />
+            <BookCover book={book} />
             <span><strong>{book.label}</strong><small>{book.edition}</small></span>
             {book.id === activeBook.id && <i>正在读</i>}
           </button>
@@ -114,7 +177,7 @@ function Bookshelf({ books, activeBook, chooseBook, page, choosePage, open, clos
           </button>
         ))}
       </div>
-      <footer className="shelf-note"><Sparkles size={16} /><span>所有教学数据来自当前8册PDF<a href="./guide.html" target="_blank" rel="noreferrer">查看使用说明</a></span></footer>
+      <footer className="shelf-note"><Sparkles size={16} /><div className="shelf-note-body">课本已保存在这台 iPad<BookImporter compact onImported={onImported} /><a href="./guide.html" target="_blank" rel="noreferrer">查看使用说明</a></div></footer>
     </aside>
   )
 }
@@ -149,11 +212,10 @@ function ReaderToolbar({ book, unit, page, pageCount, setPage, zoom, setZoom, po
   )
 }
 
-function TextbookPage({ book, page, pageData, zoom, pointMode }) {
+function TextbookPage({ book, page, pageData, pageImageUrl, zoom, pointMode }) {
   const [activeLine, setActiveLine] = useState(-1)
   const [loadedImage, setLoadedImage] = useState('')
-  const imageUrl = assetPath(book.pageImagePattern, page)
-  const imageReady = loadedImage === imageUrl
+  const imageReady = Boolean(pageImageUrl) && loadedImage === pageImageUrl
   useEffect(() => { setActiveLine(-1); window.speechSynthesis?.cancel() }, [book.id, page])
   const playLine = (line, index) => {
     setActiveLine(index)
@@ -167,7 +229,7 @@ function TextbookPage({ book, page, pageData, zoom, pointMode }) {
           className={`textbook-page ${imageReady ? 'ready' : ''}`}
           style={{ '--page-width': `${Math.round(790 * zoom)}px`, '--zoom-percent': `${zoom * 100}%`, '--reader-zoom': zoom }}
         >
-          <img src={imageUrl} alt={`${book.label}第${page}页`} onLoad={() => setLoadedImage(imageUrl)} />
+          {pageImageUrl && <img src={pageImageUrl} alt={`${book.label}第${page}页`} onLoad={() => setLoadedImage(pageImageUrl)} />}
           {pageData && (
             <div className={`ocr-layer ${pointMode ? 'show-guides' : ''}`} aria-label="可点读英文文字层">
               {pageData.lines.map((line, index) => (
@@ -328,9 +390,11 @@ function SelectionSpeaker() {
 export default function App() {
   const [catalog, setCatalog] = useState(null)
   const [loadError, setLoadError] = useState('')
+  const [libraryRevision, setLibraryRevision] = useState(0)
   const [bookId, setBookId] = useState('')
   const [page, setPageState] = useState(1)
   const [pageData, setPageData] = useState(null)
+  const [pageImageUrl, setPageImageUrl] = useState('')
   const [pageError, setPageError] = useState('')
   const [zoom, setZoom] = useState(1)
   const [pointMode, setPointMode] = useState(true)
@@ -338,34 +402,68 @@ export default function App() {
   const readerTop = useRef(null)
 
   useEffect(() => {
-    fetch(CATALOG_URL, { cache: 'no-store' })
-      .then(response => { if (!response.ok) throw new Error(`教材数据包返回 ${response.status}`); return response.json() })
-      .then(data => {
-        if (!data.books?.length) throw new Error('教材数据包中没有课本')
-        const saved = storedPosition()
-        const initialBook = data.books.find(item => item.id === saved.bookId) || data.books[0]
-        setCatalog(data)
-        setBookId(initialBook.id)
-        setPageState(Math.min(initialBook.pageCount, Math.max(1, saved.page || initialBook.units?.[0]?.startPage || 1)))
+    let cancelled = false
+    const applyCatalog = data => {
+      if (cancelled) return
+      if (!data.books?.length) throw new Error('教材库中没有课本')
+      const saved = storedPosition()
+      const initialBook = data.books.find(item => item.id === (bookId || saved.bookId)) || data.books[0]
+      setCatalog(data)
+      setBookId(initialBook.id)
+      setPageState(current => {
+        const savedPage = saved.bookId === initialBook.id ? saved.page : null
+        const candidate = current > 1 && bookId === initialBook.id ? current : (savedPage || initialBook.units?.[0]?.startPage || 1)
+        return Math.min(initialBook.pageCount, Math.max(1, candidate))
       })
-      .catch(error => setLoadError(error.message))
-  }, [])
+      setLoadError('')
+    }
+    listImportedBooks()
+      .then(books => {
+        if (books.length) return applyCatalog({ schemaVersion: 1, source: 'iPad本地教材包', books })
+        if (IPAD_LIBRARY_ONLY) throw new Error('iPad 教材库中还没有课本')
+        return fetch(CATALOG_URL, { cache: 'no-store' })
+          .then(response => { if (!response.ok) throw new Error(`教材数据包返回 ${response.status}`); return response.json() })
+          .then(data => applyCatalog(data))
+      })
+      .catch(error => { if (!cancelled) setLoadError(error.message) })
+    return () => { cancelled = true }
+  }, [libraryRevision])
 
   const book = catalog?.books.find(item => item.id === bookId)
   const unit = book?.units.find(item => page >= item.startPage && page <= item.endPage)
 
   useEffect(() => {
     if (!book) return
+    let cancelled = false
+    let objectUrl = ''
     setPageData(null)
+    setPageImageUrl('')
     setPageError('')
-    fetch(assetPath(book.pageDataPattern, page), { cache: 'no-store' })
-      .then(response => { if (!response.ok) throw new Error(`第${page}页点读数据不可用`); return response.json() })
-      .then(setPageData)
-      .catch(error => setPageError(error.message))
+    const loadPage = book.storage === 'indexeddb'
+      ? Promise.all([
+          getImportedAsset(book.id, `pages/page-${String(page).padStart(3, '0')}.jpg`),
+          getImportedPageData(book.id, page),
+        ]).then(([imageBlob, data]) => {
+          objectUrl = URL.createObjectURL(imageBlob)
+          if (cancelled) { URL.revokeObjectURL(objectUrl); return }
+          setPageImageUrl(objectUrl)
+          setPageData(data)
+        })
+      : fetch(assetPath(book.pageDataPattern, page), { cache: 'no-store' })
+          .then(response => { if (!response.ok) throw new Error(`第${page}页点读数据不可用`); return response.json() })
+          .then(data => {
+            if (cancelled) return
+            setPageImageUrl(assetPath(book.pageImagePattern, page))
+            setPageData(data)
+          })
+    loadPage.catch(error => { if (!cancelled) setPageError(error.message) })
     localStorage.setItem(PAGE_KEY, JSON.stringify({ bookId: book.id, page }))
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [book?.id, page])
 
-  if (loadError) return <SetupScreen error={loadError} />
+  const imported = () => setLibraryRevision(value => value + 1)
+
+  if (loadError) return <SetupScreen onImported={imported} />
   if (!catalog || !book) return <LoadingScreen />
 
   const setPage = next => {
@@ -381,12 +479,12 @@ export default function App() {
 
   return (
     <div className="textbook-app" ref={readerTop}>
-      <Bookshelf books={catalog.books} activeBook={book} chooseBook={chooseBook} page={page} choosePage={setPage} open={shelfOpen} close={() => setShelfOpen(false)} />
+      <Bookshelf books={catalog.books} activeBook={book} chooseBook={chooseBook} page={page} choosePage={setPage} open={shelfOpen} close={() => setShelfOpen(false)} onImported={imported} />
       {shelfOpen && <button className="shelf-backdrop" onClick={() => setShelfOpen(false)} aria-label="关闭书架" />}
       <div className="reader-shell">
         <ReaderToolbar book={book} unit={unit} page={page} pageCount={book.pageCount} setPage={setPage} zoom={zoom} setZoom={setZoom} pointMode={pointMode} setPointMode={setPointMode} openShelf={() => setShelfOpen(true)} />
         <main className="learning-desk">
-          <TextbookPage book={book} page={page} pageData={pageData} zoom={zoom} pointMode={pointMode} />
+          <TextbookPage book={book} page={page} pageData={pageData} pageImageUrl={pageImageUrl} zoom={zoom} pointMode={pointMode} />
           <PracticePanel book={book} unit={unit} />
         </main>
         {pageError && <div className="page-error"><CircleAlert /> {pageError}</div>}

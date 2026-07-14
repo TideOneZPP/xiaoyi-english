@@ -38,6 +38,10 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .setup-card strong, .setup-card small { display: block; }
 .setup-card strong { font-size: 14px; }.setup-card small { margin-top: 3px; color: var(--muted); font-size: 11px; }
 .setup-error { max-width: 620px; margin-top: 15px; padding: 8px 12px; border-radius: 9px; color: #9b4338; background: #fff0ed; font-size: 11px; }
+.book-importer { width: min(620px, 100%); display: grid; justify-items: center; gap: 7px; margin-top: 16px; }
+.book-importer > button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 10px 20px; border: 0; border-radius: 14px; color: #fff; background: linear-gradient(135deg, var(--blue), #318d68); box-shadow: 0 10px 24px rgba(43,110,157,.22); font-size: 13px; font-weight: 900; cursor: pointer; }
+.book-importer > button:disabled { opacity: .68; cursor: wait; }.book-importer > button svg { width: 18px; }.book-importer > small { color: var(--muted); font-size: 10px; }
+.import-message, .import-error { max-width: 100%; display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: 10px; line-height: 1.5; }.import-message { color: #287248; }.import-error { color: #9b4338; }.import-message svg, .import-error svg { width: 14px; height: 14px; flex: none; }
 
 .textbook-app { min-height: 100vh; }
 .bookshelf { position: fixed; inset: 0 auto 0 0; width: 254px; z-index: 40; display: flex; flex-direction: column; padding: 22px 16px 18px; overflow: hidden; color: #fff; background: linear-gradient(180deg, #245da7 0, #2d70be 62%, #216d69 100%); box-shadow: 9px 0 26px rgba(24,54,91,.14); }
@@ -52,6 +56,7 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .book-spine:hover { background: rgba(255,255,255,.12); transform: translateX(2px); }
 .book-spine.active { color: var(--ink); background: var(--paper); box-shadow: 0 8px 18px rgba(15,40,68,.16); }
 .book-spine img { width: 35px; height: 42px; object-fit: cover; border-radius: 4px; box-shadow: 0 3px 7px rgba(0,0,0,.17); }
+.cover-placeholder { width: 35px; height: 42px; display: grid; place-items: center; border-radius: 4px; color: var(--blue-deep); background: #e8f1fc; }.cover-placeholder svg { width: 17px; }
 .book-spine strong, .book-spine small { display: block; }.book-spine strong { font-size: 12px; }.book-spine small { margin-top: 2px; color: currentColor; opacity: .65; font-size: 9px; }
 .book-spine i { padding: 4px 6px; border-radius: 6px; color: var(--blue-deep); background: #e8f1fc; font-size: 8px; font-style: normal; font-weight: 800; }
 .unit-shelf { min-height: 0; margin-top: 7px; overflow: auto; scrollbar-width: thin; }
@@ -60,7 +65,8 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .unit-shelf b { font: 800 10px "Trebuchet MS", sans-serif; }.unit-shelf span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; }.unit-shelf small { font-size: 8px; opacity: .62; }
 .shelf-note { position: relative; z-index: 2; margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid rgba(255,255,255,.15); border-radius: 13px; background: rgba(18,55,85,.2); font-size: 9px; line-height: 1.5; }
 .shelf-note svg { flex: none; color: var(--yellow); }
-.shelf-note span { min-width: 0; }.shelf-note a { display: block; margin-top: 2px; color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.shelf-note-body { min-width: 0; flex: 1; }.shelf-note a { display: block; margin-top: 2px; color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.book-importer.compact { width: 100%; justify-items: stretch; gap: 3px; margin: 5px 0 0; }.book-importer.compact > button { min-height: 28px; justify-content: flex-start; padding: 4px 7px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(255,255,255,.1); box-shadow: none; font-size: 9px; }.book-importer.compact > button svg { width: 13px; }.book-importer.compact .import-message, .book-importer.compact .import-error { color: #fff; font-size: 8px; }.book-importer.compact .import-message svg, .book-importer.compact .import-error svg { display: none; }
 
 .reader-shell { min-height: 100vh; margin-left: 254px; }
 .reader-toolbar { min-height: 76px; position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; align-items: center; gap: 18px; padding: 10px 24px; border-bottom: 1px solid rgba(220,228,237,.92); background: rgba(255,255,255,.92); backdrop-filter: blur(18px); }
