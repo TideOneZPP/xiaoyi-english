@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Check, ChevronDown, CircleHelp, FilePenLine, Headphones, Home, Lightbulb, Menu, RotateCcw, Save, Sparkles, Square, Star, Trophy, Volume2, X } from 'lucide-react'
-import { books, editionByBook, getUnits } from './curriculum'
+import { ArrowLeft, BookOpen, Check, ChevronDown, CircleHelp, ExternalLink, Headphones, Home, Lightbulb, Menu, RotateCcw, Sparkles, Square, Star, Trophy, Volume2, X } from 'lucide-react'
+import { books, editionByBook, getUnits, officialTextbookByBook } from './curriculum'
 import { prepareSpeechText } from './speech'
 
 const STORAGE_KEY = 'xiaoyi-learning-progress-v2'
-const TEXTBOOK_STORAGE_KEY = 'xiaoyi-textbook-content-v1'
 
 function getStoredProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {} } catch { return {} }
@@ -31,10 +30,6 @@ function speak(text, onEnd) {
     window.speechSynthesis.speak(utterance)
   }
   playNext()
-}
-
-function getStoredTextbookContent() {
-  try { return JSON.parse(localStorage.getItem(TEXTBOOK_STORAGE_KEY)) || {} } catch { return {} }
 }
 
 function Mascot({ mood = 'happy', small = false }) {
@@ -133,45 +128,16 @@ function WordShelf({ unit }) {
   )
 }
 
-function TextbookReader({ unit }) {
-  const [contents, setContents] = useState(getStoredTextbookContent)
-  const [draft, setDraft] = useState(contents[unit.id] || '')
-  const [parentOpen, setParentOpen] = useState(false)
+function TextbookReader({ unit, book }) {
   const [playingAll, setPlayingAll] = useState(false)
   const [playingLine, setPlayingLine] = useState(-1)
-  const savedText = contents[unit.id] || ''
-  const builtInLines = [...unit.words.map(word => word.en), ...unit.focus.split(' / ')]
-  const readerLines = savedText ? savedText.split(/\n+/).map(line => line.trim()).filter(Boolean) : builtInLines
+  const readerLines = [...unit.words.map(word => word.en), ...unit.focus.split(' / ')]
 
   useEffect(() => {
-    setDraft(contents[unit.id] || '')
-    setParentOpen(false)
     setPlayingAll(false)
     setPlayingLine(-1)
     window.speechSynthesis?.cancel()
   }, [unit.id])
-
-  const save = () => {
-    const cleaned = draft.trim()
-    const next = { ...contents }
-    if (cleaned) next[unit.id] = cleaned
-    else delete next[unit.id]
-    setContents(next)
-    localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
-    setParentOpen(false)
-  }
-
-  const remove = () => {
-    const next = { ...contents }
-    delete next[unit.id]
-    setContents(next)
-    localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
-    setDraft('')
-    setParentOpen(false)
-    setPlayingAll(false)
-    setPlayingLine(-1)
-    window.speechSynthesis?.cancel()
-  }
 
   const playAll = () => {
     if (playingAll) {
@@ -193,35 +159,64 @@ function TextbookReader({ unit }) {
   return (
     <section className="section-block textbook-reader">
       <div className="section-heading">
-        <div><span>TEXTBOOK READER</span><h2>课本点读</h2></div>
-        <p>孩子点一下就能听，不需要复制内容</p>
+        <div><span>READ & LISTEN</span><h2>同步点读</h2></div>
+        <p>点扬声器直接听；长按选中文字也能朗读</p>
       </div>
       <div className="reader-toolbar">
-        <span className={`reader-source ${savedText ? 'verified' : ''}`}>{savedText ? '家长校对版' : '同步核心词句'}</span>
-        <button className={`reader-play-all ${playingAll ? 'playing' : ''}`} onClick={playAll}>
-          {playingAll ? <Square size={16} fill="currentColor" /> : <Volume2 size={18} />}{playingAll ? '停止播放' : '全部播放'}
-        </button>
+        <span className="reader-source">当前：同步核心词句</span>
+        <div className="reader-actions">
+          <a className="official-textbook-link" href={officialTextbookByBook[book]} target="_blank" rel="noreferrer"><BookOpen size={16} /> 国家平台正版教材 <ExternalLink size={13} /></a>
+          <button className={`reader-play-all ${playingAll ? 'playing' : ''}`} onClick={playAll}>
+            {playingAll ? <Square size={16} fill="currentColor" /> : <Volume2 size={18} />}{playingAll ? '停止播放' : '全部播放'}
+          </button>
+        </div>
       </div>
       <div className="reader-lines">
         {readerLines.map((line, index) => (
-          <button key={`${line}-${index}`} className={playingLine === index ? 'playing' : ''} onClick={() => playLine(line, index)}>
-            <span>{index < (savedText ? 0 : unit.words.length) ? 'WORD' : 'LINE'}</span><strong>{line}</strong><Volume2 size={18} />
-          </button>
+          <div key={`${line}-${index}`} className={`reader-line ${playingLine === index ? 'playing' : ''}`}>
+            <span>{index < unit.words.length ? 'WORD' : 'LINE'}</span><strong>{line}</strong>
+            <button onClick={() => playLine(line, index)} aria-label={`朗读 ${line}`}><Volume2 size={18} /></button>
+          </div>
         ))}
       </div>
-      <details className="parent-panel" open={parentOpen} onToggle={event => setParentOpen(event.currentTarget.open)}>
-        <summary><FilePenLine size={16} /> 家长设置：校对本单元内容</summary>
-        <div className="textbook-editor">
-          <label htmlFor="textbook-content">仅家长操作：每行填写一个单词、句型或一段课文</label>
-          <textarea id="textbook-content" value={draft} onChange={event => setDraft(event.target.value)} placeholder={'例如：\nHello! I\'m ...\nWhat\'s your name?'} rows="7" />
-          <p>保存后，孩子看到的点读卡片会自动更新；内容只保存在这台设备。</p>
-          <div className="textbook-actions">
-            {savedText && <button className="reader-danger" onClick={remove}><RotateCcw size={16} /> 恢复内置内容</button>}
-            <button className="reader-primary" onClick={save} disabled={!draft.trim()}><Save size={17} /> 保存校对版</button>
-          </div>
-        </div>
-      </details>
+      <p className="reader-selection-tip">在英文上长按并拖动选择，页面底部会出现“朗读选中内容”。</p>
     </section>
+  )
+}
+
+function SelectionSpeaker() {
+  const [selectedText, setSelectedText] = useState('')
+  const [playing, setPlaying] = useState(false)
+
+  useEffect(() => {
+    const rememberSelection = () => {
+      const selection = window.getSelection()
+      const text = selection?.toString().replace(/\s+/g, ' ').trim() || ''
+      const node = selection?.anchorNode
+      const element = node?.nodeType === 1 ? node : node?.parentElement
+      if (text && /[A-Za-z]/.test(text) && !element?.closest('input, textarea')) setSelectedText(text.slice(0, 800))
+    }
+    document.addEventListener('selectionchange', rememberSelection)
+    return () => document.removeEventListener('selectionchange', rememberSelection)
+  }, [])
+
+  if (!selectedText) return null
+  const toggle = () => {
+    if (playing) {
+      window.speechSynthesis?.cancel()
+      setPlaying(false)
+      return
+    }
+    setPlaying(true)
+    speak(selectedText, () => setPlaying(false))
+  }
+
+  return (
+    <div className="selection-speaker" role="status">
+      <span>已选中：{selectedText.length > 38 ? `${selectedText.slice(0, 38)}…` : selectedText}</span>
+      <button className={playing ? 'playing' : ''} onMouseDown={event => event.preventDefault()} onClick={toggle}>{playing ? <Square size={15} fill="currentColor" /> : <Volume2 size={17} />}{playing ? '停止' : '朗读选中内容'}</button>
+      <button className="selection-close" aria-label="关闭选中内容朗读" onClick={() => { window.speechSynthesis?.cancel(); setPlaying(false); setSelectedText('') }}><X size={16} /></button>
+    </div>
   )
 }
 
@@ -382,11 +377,12 @@ export default function App() {
       <div className="content-shell">
         <Topbar openMenu={() => setMenuOpen(true)} stars={stars} learnedSteps={learnedSteps} />
         <main className="main-content">
-          <><UnitHero unit={activeUnit} book={book} progress={unitProgress} onStart={() => setLesson(Math.min(unitProgress.completed, activeUnit.activities.length - 1))} /><WordShelf unit={activeUnit} /><TextbookReader unit={activeUnit} /><LessonPath unit={activeUnit} progress={unitProgress} onStep={setLesson} /></>
+          <><UnitHero unit={activeUnit} book={book} progress={unitProgress} onStart={() => setLesson(Math.min(unitProgress.completed, activeUnit.activities.length - 1))} /><WordShelf unit={activeUnit} /><TextbookReader unit={activeUnit} book={book} /><LessonPath unit={activeUnit} progress={unitProgress} onStep={setLesson} /></>
         </main>
       </div>
       {lesson !== null && <Exercise unit={activeUnit} index={lesson} onClose={() => setLesson(null)} onComplete={completeStep} />}
       {celebrating && <Celebration unit={activeUnit} onClose={() => setCelebrating(false)} />}
+      <SelectionSpeaker />
     </div>
   )
 }

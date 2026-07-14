@@ -3,6 +3,19 @@ export const books = ['三年级上册', '三年级下册', '四年级上册', '
 const gradeNumbers = { 三: 3, 四: 4, 五: 5, 六: 6 }
 export const editionByBook = Object.fromEntries(books.map((book, index) => [book, index < 4 ? '2024新版' : '现行版（等待新版发布）']))
 
+const officialDetail = contentId => `https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=${contentId}&catalogType=tchMaterial&subCatalog=tchMaterial`
+
+export const officialTextbookByBook = {
+  '三年级上册': officialDetail('aa2275a3-f969-c5fe-1c2c-d08b92223b67'),
+  '三年级下册': officialDetail('c1a23e1e-a239-1533-bf2f-18332a4f7355'),
+  '四年级上册': officialDetail('a9ce6662-f5a5-4561-944a-c3dbcc5a8192'),
+  '四年级下册': officialDetail('a4fb0c8b-ebd6-4db9-bca0-705fca8126e4'),
+  '五年级上册': officialDetail('06631d69-0865-4694-baf9-dccf22bff2fd'),
+  '五年级下册': officialDetail('d3324da8-fe96-4a0d-9259-e60794e27491'),
+  '六年级上册': officialDetail('32d2e60a-be5a-4c1c-92d6-8b99e00f6db3'),
+  '六年级下册': officialDetail('2b63b996-3f8c-439a-bb0c-3f127c9507af'),
+}
+
 const palettes = ['#ff7a68', '#5ecfa2', '#56b8e8', '#f3b84f', '#9b7de3', '#ef78a5', '#55c2c3', '#7f9dea']
 
 const bookSpecs = {
