@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Check, ChevronDown, FilePenLine, Headphones, Home, Lightbulb, Menu, RotateCcw, Save, Sparkles, Square, Star, Trash2, Trophy, Volume2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, ChevronDown, CircleHelp, FilePenLine, Headphones, Home, Lightbulb, Menu, RotateCcw, Save, Sparkles, Square, Star, Trophy, Volume2, X } from 'lucide-react'
 import { books, editionByBook, getUnits } from './curriculum'
 import { prepareSpeechText } from './speech'
 
@@ -70,6 +70,7 @@ function Sidebar({ activeUnit, onUnit, book, onBook, currentUnits, isOpen, close
           </button>
         ))}
       </div>
+      <a className="guide-link" href={`${import.meta.env.BASE_URL}guide.html`}><CircleHelp size={17} /> 使用说明</a>
       <div className="sidebar-tip"><Sparkles size={18} /><p><strong>今天也要开口说</strong><br />每天 10 分钟，英语更自信。</p></div>
     </aside>
   )
@@ -135,14 +136,18 @@ function WordShelf({ unit }) {
 function TextbookReader({ unit }) {
   const [contents, setContents] = useState(getStoredTextbookContent)
   const [draft, setDraft] = useState(contents[unit.id] || '')
-  const [editing, setEditing] = useState(!contents[unit.id])
-  const [playing, setPlaying] = useState(false)
+  const [parentOpen, setParentOpen] = useState(false)
+  const [playingAll, setPlayingAll] = useState(false)
+  const [playingLine, setPlayingLine] = useState(-1)
   const savedText = contents[unit.id] || ''
+  const builtInLines = [...unit.words.map(word => word.en), ...unit.focus.split(' / ')]
+  const readerLines = savedText ? savedText.split(/\n+/).map(line => line.trim()).filter(Boolean) : builtInLines
 
   useEffect(() => {
     setDraft(contents[unit.id] || '')
-    setEditing(!contents[unit.id])
-    setPlaying(false)
+    setParentOpen(false)
+    setPlayingAll(false)
+    setPlayingLine(-1)
     window.speechSynthesis?.cancel()
   }, [unit.id])
 
@@ -153,7 +158,7 @@ function TextbookReader({ unit }) {
     else delete next[unit.id]
     setContents(next)
     localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
-    setEditing(!cleaned)
+    setParentOpen(false)
   }
 
   const remove = () => {
@@ -162,48 +167,60 @@ function TextbookReader({ unit }) {
     setContents(next)
     localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
     setDraft('')
-    setEditing(true)
-    setPlaying(false)
+    setParentOpen(false)
+    setPlayingAll(false)
+    setPlayingLine(-1)
     window.speechSynthesis?.cancel()
   }
 
-  const play = () => {
-    if (playing) {
+  const playAll = () => {
+    if (playingAll) {
       window.speechSynthesis?.cancel()
-      setPlaying(false)
+      setPlayingAll(false)
       return
     }
-    setPlaying(true)
-    speak(savedText, () => setPlaying(false))
+    setPlayingLine(-1)
+    setPlayingAll(true)
+    speak(readerLines.join(' '), () => setPlayingAll(false))
+  }
+
+  const playLine = (line, index) => {
+    setPlayingAll(false)
+    setPlayingLine(index)
+    speak(line, () => setPlayingLine(-1))
   }
 
   return (
     <section className="section-block textbook-reader">
       <div className="section-heading">
         <div><span>TEXTBOOK READER</span><h2>课本点读</h2></div>
-        <p>按您手中的教材录入，只保存在本机</p>
+        <p>孩子点一下就能听，不需要复制内容</p>
       </div>
-      {editing ? (
-        <div className="textbook-editor">
-          <label htmlFor="textbook-content">粘贴 Unit {unit.number} 的单词、句型或课文原文</label>
-          <textarea id="textbook-content" value={draft} onChange={event => setDraft(event.target.value)} placeholder={'例如：\nHello! I\'m ...\nWhat\'s your name?'} rows="7" />
-          <div className="textbook-actions">
-            {savedText && <button className="reader-secondary" onClick={() => { setDraft(savedText); setEditing(false) }}>取消</button>}
-            <button className="reader-primary" onClick={save} disabled={!draft.trim()}><Save size={17} /> 保存到本机</button>
-          </div>
-        </div>
-      ) : (
-        <div className="textbook-content">
-          <button className={`reader-play ${playing ? 'playing' : ''}`} onClick={play} aria-label={playing ? '停止播报' : '播报课文'}>
-            {playing ? <Square size={23} fill="currentColor" /> : <Volume2 size={27} />}
+      <div className="reader-toolbar">
+        <span className={`reader-source ${savedText ? 'verified' : ''}`}>{savedText ? '家长校对版' : '同步核心词句'}</span>
+        <button className={`reader-play-all ${playingAll ? 'playing' : ''}`} onClick={playAll}>
+          {playingAll ? <Square size={16} fill="currentColor" /> : <Volume2 size={18} />}{playingAll ? '停止播放' : '全部播放'}
+        </button>
+      </div>
+      <div className="reader-lines">
+        {readerLines.map((line, index) => (
+          <button key={`${line}-${index}`} className={playingLine === index ? 'playing' : ''} onClick={() => playLine(line, index)}>
+            <span>{index < (savedText ? 0 : unit.words.length) ? 'WORD' : 'LINE'}</span><strong>{line}</strong><Volume2 size={18} />
           </button>
-          <p>{savedText}</p>
+        ))}
+      </div>
+      <details className="parent-panel" open={parentOpen} onToggle={event => setParentOpen(event.currentTarget.open)}>
+        <summary><FilePenLine size={16} /> 家长设置：校对本单元内容</summary>
+        <div className="textbook-editor">
+          <label htmlFor="textbook-content">仅家长操作：每行填写一个单词、句型或一段课文</label>
+          <textarea id="textbook-content" value={draft} onChange={event => setDraft(event.target.value)} placeholder={'例如：\nHello! I\'m ...\nWhat\'s your name?'} rows="7" />
+          <p>保存后，孩子看到的点读卡片会自动更新；内容只保存在这台设备。</p>
           <div className="textbook-actions">
-            <button className="reader-secondary" onClick={() => setEditing(true)}><FilePenLine size={16} /> 修改</button>
-            <button className="reader-danger" onClick={remove}><Trash2 size={16} /> 删除</button>
+            {savedText && <button className="reader-danger" onClick={remove}><RotateCcw size={16} /> 恢复内置内容</button>}
+            <button className="reader-primary" onClick={save} disabled={!draft.trim()}><Save size={17} /> 保存校对版</button>
           </div>
         </div>
-      )}
+      </details>
     </section>
   )
 }

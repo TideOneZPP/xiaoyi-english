@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#5668d8" />
+  <title>使用说明 · 小译同学</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #24304b;
+      --muted: #707990;
+      --brand: #5668d8;
+      --brand-deep: #3f50b9;
+      --paper: #f3f6fb;
+      --white: #fff;
+      --line: #e2e7f1;
+      --coral: #e7757e;
+      --yellow: #ffd45a;
+      --mint: #55c99a;
+      --shadow: 0 16px 46px rgba(45, 56, 95, .09);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 320px; line-height: 1.75; }
+    a { color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a:focus-visible, button:focus-visible { outline: 3px solid rgba(86, 104, 216, .35); outline-offset: 4px; }
+
+    .topbar {
+      height: 72px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 max(24px, calc((100vw - 1180px) / 2));
+      border-bottom: 1px solid rgba(226, 231, 241, .9);
+      background: rgba(255, 255, 255, .9);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 800; }
+    .brand img { width: 40px; height: 40px; border-radius: 12px; box-shadow: 0 7px 16px rgba(86, 104, 216, .2); }
+    .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; }
+    .top-actions { display: flex; gap: 9px; }
+    .button { min-height: 40px; border: 0; border-radius: 12px; padding: 9px 15px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; text-decoration: none; font-weight: 800; cursor: pointer; }
+    .button.primary { color: #fff; background: var(--brand); box-shadow: 0 7px 17px rgba(86, 104, 216, .2); }
+    .button.secondary { color: var(--ink); background: #f3f5fa; }
+
+    .hero {
+      max-width: 1180px;
+      margin: 28px auto 0;
+      min-height: 390px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      border-radius: 30px;
+      color: #fff;
+      background: linear-gradient(125deg, #5668d8, #7c70d5 56%, #d87591);
+      box-shadow: 0 24px 65px rgba(74, 79, 158, .2);
+    }
+    .hero::before { content: ""; position: absolute; width: 430px; height: 430px; right: -135px; top: -245px; border: 2px solid rgba(255,255,255,.14); border-radius: 50%; box-shadow: 0 0 0 54px rgba(255,255,255,.045), 0 0 0 108px rgba(255,255,255,.025); }
+    .hero-copy { padding: 57px 56px 48px; position: relative; z-index: 2; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 800 11px/1.2 "Trebuchet MS", sans-serif; letter-spacing: .16em; opacity: .82; }
+    .eyebrow::before { content: ""; width: 19px; height: 3px; border-radius: 5px; background: var(--yellow); }
+    h1 { margin: 14px 0 13px; font: 900 clamp(42px, 6vw, 70px)/1.05 "Arial Rounded MT Bold", "Microsoft YaHei", sans-serif; letter-spacing: -.04em; }
+    .hero-copy > p { max-width: 520px; margin: 0; font-size: 15px; opacity: .9; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 27px; }
+    .hero-meta span { padding: 7px 11px; border: 1px solid rgba(255,255,255,.22); border-radius: 10px; background: rgba(255,255,255,.1); font-size: 11px; font-weight: 700; }
+
+    .quick-route { position: relative; z-index: 2; align-self: center; margin: 36px 48px 36px 10px; padding: 28px 26px 25px 36px; color: var(--ink); background: #fffdf7; border-radius: 8px 22px 22px 8px; box-shadow: 0 22px 50px rgba(41, 40, 89, .18); transform: rotate(1.2deg); }
+    .quick-route::before { content: ""; position: absolute; inset: 0 auto 0 14px; width: 2px; background: #f2a6aa; box-shadow: 5px 0 0 #dbe7f7; }
+    .quick-route h2 { margin: 0 0 17px; font-size: 18px; }
+    .route-step { display: grid; grid-template-columns: 31px 1fr; gap: 10px; align-items: start; padding: 9px 0; }
+    .route-step b { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: var(--brand); font: 800 12px "Trebuchet MS", sans-serif; }
+    .route-step strong { display: block; font-size: 13px; }
+    .route-step small { display: block; margin-top: 1px; color: var(--muted); font-size: 11px; }
+    .route-note { margin: 15px 0 0; padding-top: 13px; border-top: 1px dashed #d9d6ca; color: #7b6a35; font-size: 10px; }
+
+    .page-grid { max-width: 1180px; margin: 28px auto 70px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
+    .toc { position: sticky; top: 94px; padding: 21px; border: 1px solid var(--line); border-radius: 20px; background: #fff; box-shadow: 0 8px 28px rgba(61,72,111,.04); }
+    .toc strong { display: block; margin-bottom: 10px; font-size: 12px; letter-spacing: .08em; }
+    .toc a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 700; }
+    .toc a::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #d5daea; }
+    .toc a:hover { color: var(--brand-deep); background: #f2f3ff; }
+    .toc a:hover::before { background: var(--brand); }
+
+    .manual { min-width: 0; }
+    .chapter { scroll-margin-top: 92px; margin-bottom: 19px; padding: 31px 34px; border: 1px solid var(--line); border-radius: 22px; background: #fff; box-shadow: var(--shadow); }
+    .chapter-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 22px; }
+    .chapter-icon { flex: 0 0 43px; width: 43px; height: 43px; display: grid; place-items: center; border-radius: 14px; color: var(--brand-deep); background: #eef0ff; font-size: 20px; }
+    .chapter h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+    .chapter-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .steps { display: grid; gap: 10px; counter-reset: guide-step; }
+    .step { counter-increment: guide-step; position: relative; min-height: 67px; padding: 13px 16px 13px 56px; border: 1px solid var(--line); border-radius: 15px; background: #fafbfe; }
+    .step::before { content: counter(guide-step); position: absolute; left: 15px; top: 14px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: var(--brand); font: 800 12px "Trebuchet MS", sans-serif; }
+    .step strong { display: block; font-size: 13px; }
+    .step p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
+    .feature { padding: 17px; border-radius: 16px; background: #f7f8fc; }
+    .feature b { display: block; margin-bottom: 3px; font-size: 13px; }
+    .feature p { margin: 0; color: var(--muted); font-size: 11px; }
+    .callout { margin-top: 16px; padding: 14px 16px; display: flex; gap: 11px; border-radius: 14px; color: #735e21; background: #fff7d9; font-size: 11px; }
+    .callout.blue { color: #3c4b9b; background: #eef0ff; }
+    .callout span { font-size: 18px; line-height: 1.3; }
+    .callout p { margin: 0; }
+    .callout strong { display: block; font-size: 12px; }
+    .pronunciation { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pronunciation th, .pronunciation td { padding: 11px 13px; border-bottom: 1px solid var(--line); text-align: left; }
+    .pronunciation th { color: var(--muted); background: #f7f8fc; font-size: 10px; letter-spacing: .05em; }
+    .pronunciation code { padding: 3px 6px; border-radius: 6px; color: var(--brand-deep); background: #eef0ff; font-family: "Trebuchet MS", sans-serif; font-weight: 800; }
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { padding: 15px 2px; cursor: pointer; font-size: 13px; font-weight: 800; }
+    details p { margin: -5px 0 16px; color: var(--muted); font-size: 12px; }
+    .footer { padding: 30px 20px 46px; text-align: center; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 1220px) {
+      .topbar, .hero, .page-grid { margin-left: 22px; margin-right: 22px; }
+      .topbar { margin: 0; padding-left: 22px; padding-right: 22px; }
+    }
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-copy { padding: 43px 34px 15px; }
+      .quick-route { margin: 20px 34px 38px; transform: none; }
+      .page-grid { grid-template-columns: 1fr; }
+      .toc { position: static; display: flex; gap: 6px; overflow-x: auto; padding: 12px; }
+      .toc strong { display: none; }
+      .toc a { flex: none; background: #f7f8fc; }
+      .toc a::before { display: none; }
+    }
+    @media (max-width: 560px) {
+      .topbar { height: 64px; padding: 0 14px; }
+      .brand span { display: none; }
+      .button { min-height: 38px; padding: 8px 11px; font-size: 12px; }
+      .button.secondary { display: none; }
+      .hero, .page-grid { margin-left: 12px; margin-right: 12px; }
+      .hero { margin-top: 14px; border-radius: 22px; }
+      .hero-copy { padding: 34px 23px 12px; }
+      h1 { font-size: 43px; }
+      .hero-copy > p { font-size: 13px; }
+      .quick-route { margin: 18px 22px 28px; padding: 24px 20px 22px 31px; }
+      .page-grid { margin-top: 14px; }
+      .chapter { padding: 24px 19px; border-radius: 18px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .pronunciation { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      :root { background: #fff; }
+      .topbar, .toc, .top-actions, .footer { display: none !important; }
+      .hero, .page-grid { max-width: none; margin: 0; }
+      .hero { min-height: auto; display: block; border-radius: 0; box-shadow: none; print-color-adjust: exact; }
+      .hero-copy { padding: 30px; }
+      .quick-route { margin: 0 30px 30px; transform: none; box-shadow: none; }
+      .page-grid { display: block; }
+      .chapter { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="返回小译同学">
+      <img src="./icon.svg" alt="" />
+      <span>小译同学<small>家庭使用说明</small></span>
+    </a>
+    <div class="top-actions">
+      <button class="button secondary" type="button" onclick="window.print()">打印说明</button>
+      <a class="button primary" href="./">返回学习 →</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">FAMILY GUIDE · 家庭使用</span>
+        <h1>第一次用，<br />从这里开始。</h1>
+        <p>这是一份给家长的简明说明。孩子用 iPad 选课本后即可直接点读和练习；只有教材印次不同时，才由家长在设置里校对一次。</p>
+        <div class="hero-meta"><span>无需账号</span><span>无需服务器</span><span>数据只存本机</span><span>支持离线</span></div>
+      </div>
+      <aside class="quick-route" aria-label="首次使用路线">
+        <h2>7 分钟上手路线</h2>
+        <div class="route-step"><b>1</b><div><strong>加入主屏幕</strong><small>从 Safari 共享菜单添加，像 App 一样打开。</small></div></div>
+        <div class="route-step"><b>2</b><div><strong>选择课本与单元</strong><small>三至六年级，共 8 册、64 个单元。</small></div></div>
+        <div class="route-step"><b>3</b><div><strong>孩子直接点读</strong><small>无需复制内容，点词句听发音，再完成 6 个小练习。</small></div></div>
+        <p class="route-note">第一次打开请保持联网，页面缓存完成后即可离线继续使用。</p>
+      </aside>
+    </section>
+
+    <div class="page-grid">
+      <nav class="toc" aria-label="说明目录">
+        <strong>说明目录</strong>
+        <a href="#install">加入 iPad</a>
+        <a href="#learn">开始学习</a>
+        <a href="#reader">课本点读</a>
+        <a href="#practice">闯关练习</a>
+        <a href="#speech">语音播报</a>
+        <a href="#data">数据与离线</a>
+        <a href="#faq">常见问题</a>
+      </nav>
+
+      <article class="manual">
+        <section class="chapter" id="install">
+          <div class="chapter-head"><div class="chapter-icon">▣</div><div><h2>把工具加入 iPad 主屏幕</h2><p>只需操作一次，以后直接点击“小译同学”图标。</p></div></div>
+          <div class="steps">
+            <div class="step"><strong>使用 Safari 打开学习网址</strong><p>不要使用微信内置浏览器；Safari 对主屏幕安装和语音支持更完整。</p></div>
+            <div class="step"><strong>点击 Safari 的“共享”按钮</strong><p>图标通常是一个向上箭头的小方框。</p></div>
+            <div class="step"><strong>选择“添加到主屏幕”</strong><p>名称保留为“小译同学”，再点右上角“添加”。</p></div>
+            <div class="step"><strong>从主屏幕打开一次</strong><p>首次加载完成后，主要页面与练习可以离线使用。</p></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="learn">
+          <div class="chapter-head"><div class="chapter-icon">英</div><div><h2>选择课本并开始学习</h2><p>建议每次 10—15 分钟，一次完成一个单元中的 1—2 关。</p></div></div>
+          <div class="feature-grid">
+            <div class="feature"><b>① 打开左上角目录</b><p>在 iPad 上点击左上角三条横线，选择年级和上下册。</p></div>
+            <div class="feature"><b>② 选择正在学习的 Unit</b><p>目录会显示单元英文标题和中文主题。</p></div>
+            <div class="feature"><b>③ 点读 4 个核心词</b><p>每个词可以反复播放，让孩子看词、听音、跟读。</p></div>
+            <div class="feature"><b>④ 点击“开始学习”</b><p>完成一关才会解锁下一关，星星按真实进度计算。</p></div>
+          </div>
+          <div class="callout"><span>★</span><p><strong>陪学建议</strong>第一次先让孩子听和模仿，不急着讲语法。答错时读提示，再试一次即可。</p></div>
+        </section>
+
+        <section class="chapter" id="reader">
+          <div class="chapter-head"><div class="chapter-icon">▤</div><div><h2>孩子直接点读，家长只需校对</h2><p>默认内容已经显示；不同印次需要调整时，再由家长操作一次。</p></div></div>
+          <div class="steps">
+            <div class="step"><strong>孩子进入对应课本和单元</strong><p>“课本点读”会直接显示当前单元的核心单词和句型。</p></div>
+            <div class="step"><strong>点一行听一行</strong><p>点击任意词句卡片即可听发音，也可点击“全部播放”连续收听。</p></div>
+            <div class="step"><strong>教材不一致时由家长校对</strong><p>展开底部“家长设置”，按手中教材每行填写一条内容。</p></div>
+            <div class="step"><strong>保存一次，孩子以后直接使用</strong><p>保存后显示“家长校对版”；需要撤销时可恢复内置内容。</p></div>
+          </div>
+          <div class="callout blue"><span>⌂</span><p><strong>孩子不需要复制课文</strong>内容准备属于家长设置，而且只在确有版本差异时使用。校对内容仅保存在当前设备。</p></div>
+        </section>
+
+        <section class="chapter" id="practice">
+          <div class="chapter-head"><div class="chapter-icon">✓</div><div><h2>六类闯关练习</h2><p>从听说和词义识别，逐步过渡到句型与阅读。</p></div></div>
+          <div class="feature-grid">
+            <div class="feature"><b>核心词汇</b><p>依次点读 4 个词，完成后由孩子确认已经跟读。</p></div>
+            <div class="feature"><b>词义辨析</b><p>根据中文或情境选择正确英文词语。</p></div>
+            <div class="feature"><b>听力挑战</b><p>点击播放，可多听几遍，再选择听到的句子。</p></div>
+            <div class="feature"><b>句型补全</b><p>根据提示填写缺少的核心单词。</p></div>
+            <div class="feature"><b>排列句子</b><p>按英语语序点击词块，组成完整句子。</p></div>
+            <div class="feature"><b>情景或语篇理解</b><p>三、四年级重情景；五、六年级逐步增加英文阅读。</p></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="speech">
+          <div class="chapter-head"><div class="chapter-icon">◖</div><div><h2>语音播报与读音规则</h2><p>使用 iPad 自带的英式英语语音，不是出版社配套录音。</p></div></div>
+          <table class="pronunciation">
+            <thead><tr><th>页面显示</th><th>播报方式</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td><code>Mr.</code> / <code>Mrs.</code></td><td>Mister / Missus</td><td>避免逐字母朗读</td></tr>
+              <tr><td><code>a.m.</code> / <code>p.m.</code></td><td>A M / P M</td><td>保留句尾停顿</td></tr>
+              <tr><td><code>UK</code> / <code>PE</code></td><td>U K / P E</td><td>按字母分别朗读</td></tr>
+              <tr><td><code>2 kg</code> / <code>20°C</code></td><td>2 kilograms / 20 degrees Celsius</td><td>自动展开计量单位</td></tr>
+            </tbody>
+          </table>
+          <div class="callout"><span>♪</span><p><strong>听不到声音时</strong>调高媒体音量、关闭静音模式，先轻点页面任意按钮，再重新点击扬声器。首次使用还可在 iPad 设置中确认英文语音可用。</p></div>
+        </section>
+
+        <section class="chapter" id="data">
+          <div class="chapter-head"><div class="chapter-icon">⌂</div><div><h2>数据、隐私与离线使用</h2><p>工具没有账号系统，也没有保存儿童资料的服务器。</p></div></div>
+          <div class="feature-grid">
+            <div class="feature"><b>学习进度</b><p>已完成关卡和星星保存在当前浏览器的本地存储中。</p></div>
+            <div class="feature"><b>家长校对内容</b><p>孩子直接点读；家长调整的文字只保存在当前设备。</p></div>
+            <div class="feature"><b>离线缓存</b><p>首次联网加载后，断网时仍可打开主要页面和练习。</p></div>
+            <div class="feature"><b>不会跨设备同步</b><p>另一台 iPad 会从零开始，原文也要重新录入。</p></div>
+          </div>
+          <div class="callout"><span>!</span><p><strong>不要随意清除 Safari 网站数据</strong>清除历史记录与网站数据、使用无痕浏览或删除站点存储，都可能清空学习进度和录入的课文。</p></div>
+        </section>
+
+        <section class="chapter" id="faq">
+          <div class="chapter-head"><div class="chapter-icon">?</div><div><h2>常见问题</h2><p>遇到问题时先从这里检查。</p></div></div>
+          <details><summary>页面没有显示最新内容怎么办？</summary><p>保持联网，关闭主屏幕中的“小译同学”后重新打开。仍未更新时，用 Safari 打开学习网址并刷新一次。</p></details>
+          <details><summary>为什么读音与出版社录音略有不同？</summary><p>工具调用 iPad 系统的英式英语合成语音，不是教材出版社的真人配套音频，因此音色、连读和语调可能不同。</p></details>
+          <details><summary>答错会扣星星吗？</summary><p>不会。孩子可以查看提示并重复作答，答对后才进入下一关。</p></details>
+          <details><summary>为什么不能自动判断孩子发音？</summary><p>当前跟读采用孩子自我确认，不录音、不上传，也不伪装成自动评分。家长可在旁边听一遍并鼓励纠正。</p></details>
+          <details><summary>五、六年级为什么标记为“现行版”？</summary><p>三、四年级使用已核验的新教材目录；五、六年级在对应新版正式发布并可完整核验前，保留学校仍在使用的现行版，避免混入尚未确认的目录。</p></details>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer">小译同学 · 家庭英语同步练 · 使用说明更新于 2026 年 7 月</footer>
+</body>
+</html>
