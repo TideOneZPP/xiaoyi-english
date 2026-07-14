@@ -1,22 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Check, ChevronDown, Flame, Headphones, Home, Lightbulb, LockKeyhole, Menu, Mic2, RotateCcw, Sparkles, Star, Trophy, Volume2, X } from 'lucide-react'
-import { books, units } from './curriculum'
+import { ArrowLeft, BookOpen, Check, ChevronDown, FilePenLine, Headphones, Home, Lightbulb, Menu, RotateCcw, Save, Sparkles, Square, Star, Trash2, Trophy, Volume2, X } from 'lucide-react'
+import { books, editionByBook, getUnits } from './curriculum'
 
-const STORAGE_KEY = 'xiaoyi-learning-progress-v1'
+const STORAGE_KEY = 'xiaoyi-learning-progress-v2'
+const TEXTBOOK_STORAGE_KEY = 'xiaoyi-textbook-content-v1'
 
 function getStoredProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {} } catch { return {} }
 }
 
 function speak(text, onEnd) {
-  if (!('speechSynthesis' in window)) return
+  if (!('speechSynthesis' in window)) { onEnd?.(); return }
   window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = 'en-US'
-  utterance.rate = 0.78
-  utterance.pitch = 1.05
-  utterance.onend = onEnd || null
-  window.speechSynthesis.speak(utterance)
+  const sentences = (text.match(/[^.!?]+[.!?]?/g) || [text]).map(item => item.trim()).filter(Boolean)
+  const chunks = sentences.flatMap(sentence => sentence.length <= 180 ? [sentence] : (sentence.match(/.{1,180}(?:\s|$)/g) || [sentence]).map(item => item.trim()))
+  const voices = window.speechSynthesis.getVoices()
+  const voice = voices.find(item => item.lang.toLowerCase().startsWith('en-gb')) || voices.find(item => item.lang.toLowerCase().startsWith('en'))
+  let current = 0
+  const playNext = () => {
+    if (current >= chunks.length) { onEnd?.(); return }
+    const utterance = new SpeechSynthesisUtterance(chunks[current++])
+    utterance.lang = 'en-GB'
+    utterance.rate = 0.78
+    utterance.pitch = 1.05
+    if (voice) utterance.voice = voice
+    utterance.onend = playNext
+    utterance.onerror = () => onEnd?.()
+    window.speechSynthesis.speak(utterance)
+  }
+  playNext()
+}
+
+function getStoredTextbookContent() {
+  try { return JSON.parse(localStorage.getItem(TEXTBOOK_STORAGE_KEY)) || {} } catch { return {} }
 }
 
 function Mascot({ mood = 'happy', small = false }) {
@@ -29,7 +45,7 @@ function Mascot({ mood = 'happy', small = false }) {
   )
 }
 
-function Sidebar({ activeUnit, onUnit, book, setBook, isOpen, close }) {
+function Sidebar({ activeUnit, onUnit, book, onBook, currentUnits, isOpen, close }) {
   return (
     <aside className={`sidebar ${isOpen ? 'is-open' : ''}`}>
       <div className="brand"><span className="brand-mark">译</span><div><strong>小译同学</strong><small>英语同步练</small></div></div>
@@ -38,35 +54,33 @@ function Sidebar({ activeUnit, onUnit, book, setBook, isOpen, close }) {
       <div className="book-label">我的课本</div>
       <label className="book-select">
         <BookOpen size={18} />
-        <select value={book} onChange={e => setBook(e.target.value)} aria-label="选择课本">
+        <select value={book} onChange={e => onBook(e.target.value)} aria-label="选择课本">
           {books.map(item => <option key={item}>{item}</option>)}
         </select>
         <ChevronDown size={16} />
       </label>
+      <span className="edition-badge">{editionByBook[book]}</span>
       <div className="units-list">
-        {units.map((unit, index) => {
-          const locked = book !== '三年级上册'
-          return (
-            <button key={unit.id} className={`unit-link ${activeUnit.id === unit.id ? 'active' : ''}`} onClick={() => !locked && (onUnit(unit), close())} disabled={locked}>
-              <span className="unit-number" style={{ '--unit': unit.color }}>{locked ? <LockKeyhole size={14} /> : index + 1}</span>
-              <span><strong>Unit {unit.number} · {unit.title}</strong><small>{locked ? '内容准备中' : unit.zh}</small></span>
-            </button>
-          )
-        })}
+        {currentUnits.map((unit, index) => (
+          <button key={unit.id} className={`unit-link ${activeUnit.id === unit.id ? 'active' : ''}`} onClick={() => (onUnit(unit), close())}>
+            <span className="unit-number" style={{ '--unit': unit.color }}>{index + 1}</span>
+            <span><strong>Unit {unit.number} · {unit.title}</strong><small>{unit.zh}</small></span>
+          </button>
+        ))}
       </div>
       <div className="sidebar-tip"><Sparkles size={18} /><p><strong>今天也要开口说</strong><br />每天 10 分钟，英语更自信。</p></div>
     </aside>
   )
 }
 
-function Topbar({ openMenu, stars, streak }) {
+function Topbar({ openMenu, stars, learnedSteps }) {
   const today = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(new Date())
   return (
     <header className="topbar">
       <button className="menu-button" onClick={openMenu} aria-label="打开目录"><Menu /></button>
       <span className="today">{today} · 今日学习</span>
       <div className="top-stats">
-        <span className="streak"><Flame size={19} fill="currentColor" /> 连续 {streak} 天</span>
+        <span className="streak"><Check size={18} /> 已学 {learnedSteps} 关</span>
         <span className="stars"><Star size={19} fill="currentColor" /> {stars}</span>
         <span className="avatar">小</span>
       </div>
@@ -74,13 +88,13 @@ function Topbar({ openMenu, stars, streak }) {
   )
 }
 
-function UnitHero({ unit, progress, onStart }) {
+function UnitHero({ unit, book, progress, onStart }) {
   const completed = progress?.completed || 0
   const percent = Math.round(completed / unit.activities.length * 100)
   return (
     <section className="unit-hero" style={{ '--unit': unit.color }}>
       <div className="hero-copy">
-        <div className="breadcrumb">三年级上册 <span>/</span> Unit {unit.number}</div>
+        <div className="breadcrumb">{book} · {unit.edition} <span>/</span> Unit {unit.number}</div>
         <span className="unit-kicker">UNIT {String(unit.number).padStart(2, '0')}</span>
         <h1>{unit.title}</h1>
         <p>{unit.zh} · 本单元重点：<b>{unit.focus}</b></p>
@@ -116,12 +130,88 @@ function WordShelf({ unit }) {
   )
 }
 
+function TextbookReader({ unit }) {
+  const [contents, setContents] = useState(getStoredTextbookContent)
+  const [draft, setDraft] = useState(contents[unit.id] || '')
+  const [editing, setEditing] = useState(!contents[unit.id])
+  const [playing, setPlaying] = useState(false)
+  const savedText = contents[unit.id] || ''
+
+  useEffect(() => {
+    setDraft(contents[unit.id] || '')
+    setEditing(!contents[unit.id])
+    setPlaying(false)
+    window.speechSynthesis?.cancel()
+  }, [unit.id])
+
+  const save = () => {
+    const cleaned = draft.trim()
+    const next = { ...contents }
+    if (cleaned) next[unit.id] = cleaned
+    else delete next[unit.id]
+    setContents(next)
+    localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
+    setEditing(!cleaned)
+  }
+
+  const remove = () => {
+    const next = { ...contents }
+    delete next[unit.id]
+    setContents(next)
+    localStorage.setItem(TEXTBOOK_STORAGE_KEY, JSON.stringify(next))
+    setDraft('')
+    setEditing(true)
+    setPlaying(false)
+    window.speechSynthesis?.cancel()
+  }
+
+  const play = () => {
+    if (playing) {
+      window.speechSynthesis?.cancel()
+      setPlaying(false)
+      return
+    }
+    setPlaying(true)
+    speak(savedText, () => setPlaying(false))
+  }
+
+  return (
+    <section className="section-block textbook-reader">
+      <div className="section-heading">
+        <div><span>TEXTBOOK READER</span><h2>课本点读</h2></div>
+        <p>按您手中的教材录入，只保存在本机</p>
+      </div>
+      {editing ? (
+        <div className="textbook-editor">
+          <label htmlFor="textbook-content">粘贴 Unit {unit.number} 的单词、句型或课文原文</label>
+          <textarea id="textbook-content" value={draft} onChange={event => setDraft(event.target.value)} placeholder={'例如：\nHello! I\'m ...\nWhat\'s your name?'} rows="7" />
+          <div className="textbook-actions">
+            {savedText && <button className="reader-secondary" onClick={() => { setDraft(savedText); setEditing(false) }}>取消</button>}
+            <button className="reader-primary" onClick={save} disabled={!draft.trim()}><Save size={17} /> 保存到本机</button>
+          </div>
+        </div>
+      ) : (
+        <div className="textbook-content">
+          <button className={`reader-play ${playing ? 'playing' : ''}`} onClick={play} aria-label={playing ? '停止播报' : '播报课文'}>
+            {playing ? <Square size={23} fill="currentColor" /> : <Volume2 size={27} />}
+          </button>
+          <p>{savedText}</p>
+          <div className="textbook-actions">
+            <button className="reader-secondary" onClick={() => setEditing(true)}><FilePenLine size={16} /> 修改</button>
+            <button className="reader-danger" onClick={remove}><Trash2 size={16} /> 删除</button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function LessonPath({ unit, progress, onStep }) {
-  const labels = ['认识新词', '情景选择', '听力挑战', '句型补全', '排列句子']
+  const labels = unit.activities.map(item => item.label)
   return (
     <section className="section-block practice-section">
-      <div className="section-heading"><div><span>PRACTICE</span><h2>闯关练习</h2></div><p>完成 5 关，收集一枚单元徽章</p></div>
-      <div className="lesson-path">
+      <div className="section-heading"><div><span>PRACTICE</span><h2>闯关练习</h2></div><p>完成 {unit.activities.length} 关，收集一枚单元徽章</p></div>
+      <div className="lesson-path" style={{ '--steps': unit.activities.length }}>
         <div className="path-line" />
         {labels.map((label, index) => {
           const done = index < (progress?.completed || 0)
@@ -159,14 +249,14 @@ function Exercise({ unit, index, onClose, onComplete }) {
 
   const check = () => {
     let isCorrect = false
-    if (item.type === 'choice' || item.type === 'listen') isCorrect = selected === item.answer
+    if (item.type === 'choice' || item.type === 'listen' || item.type === 'read') isCorrect = selected === item.answer
     if (item.type === 'fill') isCorrect = [item.answer, ...(item.alternatives || [])].some(answer => answer.toLowerCase() === input.trim().toLowerCase())
     if (item.type === 'order') isCorrect = ordered.join(' ') === item.answer.join(' ')
     setCorrect(isCorrect); setChecked(true)
   }
 
   const canCheck = selected || input.trim() || ordered.length === item?.words?.length
-  const stepLabel = ['认识新词', '情景选择', '听力挑战', '句型补全', '排列句子'][index]
+  const stepLabel = item.label
 
   return (
     <div className="lesson-overlay">
@@ -180,11 +270,11 @@ function Exercise({ unit, index, onClose, onComplete }) {
           <div className="exercise-label">第 {index + 1} 关 · {stepLabel}</div>
           {item.type === 'word' && (
             <div className="word-exercise">
-              <p className="instruction">听一听，跟着大声读</p>
-              <span className="big-emoji">{item.emoji}</span>
-              <h2>{item.word}</h2><p className="translation">{item.zh}</p>
-              <button className="sound-button" onClick={() => speak(item.word)}><Volume2 /> 听标准发音</button>
-              <button className="record-button" onClick={() => { setCorrect(true); setChecked(true) }}><Mic2 /> 我跟读好了</button>
+              <p className="instruction">逐个听一听，跟着大声读</p>
+              <div className="word-practice-grid">
+                {item.words.map(word => <button key={word.en} onClick={() => speak(word.en)}><span>{word.emoji}</span><strong>{word.en}</strong><small>{word.zh}</small><Volume2 size={17} /></button>)}
+              </div>
+              <button className="record-button" onClick={() => { setCorrect(true); setChecked(true) }}><Check /> 4 个词都跟读好了</button>
             </div>
           )}
           {item.type === 'choice' && (
@@ -216,6 +306,13 @@ function Exercise({ unit, index, onClose, onComplete }) {
               {ordered.length > 0 && !checked && <button className="reset-order" onClick={() => setOrdered([])}><RotateCcw size={15} /> 重新排列</button>}
             </div>
           )}
+          {item.type === 'read' && (
+            <div className="question-exercise read-exercise">
+              <p className="instruction">{item.prompt}</p>
+              <div className="reading-passage"><BookOpen size={24} /><p>{item.passage}</p></div>
+              <div className="options">{item.options.map((option, i) => <button key={option} disabled={checked} className={`${selected === option ? 'selected' : ''} ${checked && option === item.answer ? 'answer' : ''}`} onClick={() => setSelected(option)}><kbd>{String.fromCharCode(65 + i)}</kbd>{option}</button>)}</div>
+            </div>
+          )}
           {checked && <Feedback correct={correct} hint={item.tip || item.hint} />}
           <div className="exercise-footer">
             {!checked && item.type !== 'word' && <button className="check-button" disabled={!canCheck} onClick={check}>检查答案</button>}
@@ -229,18 +326,20 @@ function Exercise({ unit, index, onClose, onComplete }) {
 }
 
 function Celebration({ unit, onClose }) {
-  return <div className="celebration"><div className="celebration-card"><span className="confetti">✦　★　✦</span><Trophy size={70} /><h2>Unit {unit.number} 闯关成功！</h2><p>你完成了 <b>{unit.activities.length}</b> 个练习，收集了 <b>10 颗星星</b>。</p><div className="badge">{unit.emoji}<span>单元小达人</span></div><button className="primary-button" onClick={onClose}>返回学习地图</button></div></div>
+  return <div className="celebration"><div className="celebration-card"><span className="confetti">✦　★　✦</span><Trophy size={70} /><h2>Unit {unit.number} 闯关成功！</h2><p>你完成了 <b>{unit.activities.length}</b> 个练习，收集了 <b>{unit.activities.length * 2} 颗星星</b>。</p><div className="badge">{unit.emoji}<span>单元小达人</span></div><button className="primary-button" onClick={onClose}>返回学习地图</button></div></div>
 }
 
 export default function App() {
   const [book, setBook] = useState('三年级上册')
-  const [activeUnit, setActiveUnit] = useState(units[0])
+  const [activeUnit, setActiveUnit] = useState(getUnits('三年级上册')[0])
   const [progress, setProgress] = useState(getStoredProgress)
   const [lesson, setLesson] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
+  const currentUnits = getUnits(book)
   const unitProgress = progress[activeUnit.id] || { completed: 0 }
-  const stars = useMemo(() => Object.values(progress).reduce((sum, item) => sum + (item.completed || 0) * 2, 12), [progress])
+  const learnedSteps = useMemo(() => Object.values(progress).reduce((sum, item) => sum + (item.completed || 0), 0), [progress])
+  const stars = learnedSteps * 2
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)) }, [progress])
 
@@ -250,14 +349,21 @@ export default function App() {
     if (next >= activeUnit.activities.length) { setLesson(null); setCelebrating(true) } else setLesson(next)
   }
 
+  const changeBook = value => {
+    setBook(value)
+    setActiveUnit(getUnits(value)[0])
+    setLesson(null)
+    setCelebrating(false)
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar activeUnit={activeUnit} onUnit={setActiveUnit} book={book} setBook={setBook} isOpen={menuOpen} close={() => setMenuOpen(false)} />
+      <Sidebar activeUnit={activeUnit} onUnit={setActiveUnit} book={book} onBook={changeBook} currentUnits={currentUnits} isOpen={menuOpen} close={() => setMenuOpen(false)} />
       {menuOpen && <button className="menu-backdrop" onClick={() => setMenuOpen(false)} aria-label="关闭目录" />}
       <div className="content-shell">
-        <Topbar openMenu={() => setMenuOpen(true)} stars={stars} streak={3} />
+        <Topbar openMenu={() => setMenuOpen(true)} stars={stars} learnedSteps={learnedSteps} />
         <main className="main-content">
-          {book === '三年级上册' ? <><UnitHero unit={activeUnit} progress={unitProgress} onStart={() => setLesson(Math.min(unitProgress.completed, activeUnit.activities.length - 1))} /><WordShelf unit={activeUnit} /><LessonPath unit={activeUnit} progress={unitProgress} onStep={setLesson} /></> : <section className="empty-book"><Mascot /><h1>{book}的内容正在准备</h1><p>先选择“三年级上册”，体验完整的同步练习流程吧。</p><button className="primary-button" onClick={() => setBook('三年级上册')}>去体验三年级上册</button></section>}
+          <><UnitHero unit={activeUnit} book={book} progress={unitProgress} onStart={() => setLesson(Math.min(unitProgress.completed, activeUnit.activities.length - 1))} /><WordShelf unit={activeUnit} /><TextbookReader unit={activeUnit} /><LessonPath unit={activeUnit} progress={unitProgress} onStep={setLesson} /></>
         </main>
       </div>
       {lesson !== null && <Exercise unit={activeUnit} index={lesson} onClose={() => setLesson(null)} onComplete={completeStep} />}
