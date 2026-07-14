@@ -33,6 +33,8 @@ npm run dev
 npm run build
 ```
 
+`npm run build` 会生成可直接由 GitHub Pages 发布的 `docs` 静态目录。
+
 ## 教材内容说明
 
 目前的题目是按教材单元主题和核心句型原创整理的演示数据，并非教材原文扫描或整页复制。后续可在 `src/curriculum.js` 中继续录入家庭自用、已获得授权的课本内容。
