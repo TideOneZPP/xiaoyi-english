@@ -56,7 +56,7 @@ export default defineConfig({
       manifest: {
         name: '小译同学 · 英语同步练',
         short_name: '小译同学',
-        description: '在 iPad 本地保存教材、可离线使用的译林版英语点读与原句练习工具',
+        description: '打开即用的译林版英语静态课本点读与原句练习工具',
         display: 'standalone',
         start_url: '.',
         scope: '.',
@@ -72,8 +72,30 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,json}'],
+        globIgnores: ['textbooks/**'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: /\/textbooks\/data\/books\/.*\/pages\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'xiaoyi-textbook-pages-v1',
+              expiration: { maxEntries: 180, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/textbooks\/data\/.*\.json$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'xiaoyi-textbook-data-v1',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 220, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

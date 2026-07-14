@@ -2,7 +2,7 @@ node_modules/
 dist/
 .playwright-cli/
 output/
-textbooks/
+/textbooks/
 tmp/
 *.log
 __pycache__/

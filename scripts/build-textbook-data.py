@@ -16,7 +16,6 @@ import re
 import shutil
 import subprocess
 import sys
-import zipfile
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -418,38 +417,6 @@ def build_catalog(books: list[BookInput], counts: dict[str, int], dpi: int) -> N
     (DATA_ROOT / "catalog.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def build_ipad_packages() -> None:
-    catalog = json.loads((DATA_ROOT / "catalog.json").read_text(encoding="utf-8"))
-    packages_dir = TEXTBOOKS / "packages"
-    packages_dir.mkdir(parents=True, exist_ok=True)
-    expected: set[Path] = set()
-    for book in catalog["books"]:
-        package_path = packages_dir / f"小译同学-{book['label']}.xiaoyi"
-        expected.add(package_path)
-        book_root = DATA_ROOT / "books" / book["id"]
-        envelope = {
-            "format": "xiaoyi-textbook",
-            "version": 1,
-            "source": catalog["source"],
-            "book": book,
-        }
-        print(f"[iPad教材包] {book['label']}", flush=True)
-        with zipfile.ZipFile(package_path, "w", allowZip64=True) as archive:
-            archive.writestr(
-                "book.json",
-                json.dumps(envelope, ensure_ascii=False, separators=(",", ":")),
-                compress_type=zipfile.ZIP_DEFLATED,
-                compresslevel=6,
-            )
-            for page in range(1, int(book["pageCount"]) + 1):
-                page_name = f"page-{page:03d}"
-                archive.write(book_root / "pages" / f"{page_name}.jpg", f"pages/{page_name}.jpg", compress_type=zipfile.ZIP_STORED)
-                archive.write(book_root / "ocr" / f"{page_name}.json", f"ocr/{page_name}.json", compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
-    for old in packages_dir.glob("*.xiaoyi"):
-        if old not in expected:
-            old.unlink()
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="从本地教材PDF生成OCR点读数据包")
     parser.add_argument("--workers", type=int, default=max(2, min(10, (os.cpu_count() or 4) - 2)))
@@ -458,7 +425,6 @@ def main() -> int:
     parser.add_argument("--force-ocr", action="store_true")
     parser.add_argument("--tesseract")
     parser.add_argument("--pdftoppm")
-    parser.add_argument("--packages", action="store_true", help="同时生成可导入 iPad 的 .xiaoyi 教材包")
     args = parser.parse_args()
 
     tesseract = resolve_executable(args.tesseract, TESSERACT_DEFAULT, "tesseract")
@@ -495,8 +461,6 @@ def main() -> int:
                 print(f"[OCR进度] {completed}/{total}", flush=True)
 
     build_catalog(books, counts, args.dpi)
-    if args.packages:
-        build_ipad_packages()
     print(f"[完成] 教材数据包：{DATA_ROOT / 'catalog.json'}", flush=True)
     return 0
 

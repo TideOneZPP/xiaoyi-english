@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/export-static-textbooks.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "fflate": "^0.8.3",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
