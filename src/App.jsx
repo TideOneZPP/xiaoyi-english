@@ -1,20 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BookOpen, Check, ChevronDown, FilePenLine, Headphones, Home, Lightbulb, Menu, RotateCcw, Save, Sparkles, Square, Star, Trash2, Trophy, Volume2, X } from 'lucide-react'
 import { books, editionByBook, getUnits } from './curriculum'
+import { prepareSpeechText } from './speech'
 
 const STORAGE_KEY = 'xiaoyi-learning-progress-v2'
 const TEXTBOOK_STORAGE_KEY = 'xiaoyi-textbook-content-v1'
 
 function getStoredProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {} } catch { return {} }
-}
-
-function prepareSpeechText(text) {
-  return text
-    .replace(/\bMrs\.?(?=\s|$|[,;:!?])/gi, 'Missus')
-    .replace(/\bMr\.?(?=\s|$|[,;:!?])/gi, 'Mister')
-    .replace(/\bMs\.?(?=\s|$|[,;:!?])/gi, 'Miz')
-    .replace(/\bDr\.?(?=\s|$|[,;:!?])/gi, 'Doctor')
 }
 
 function speak(text, onEnd) {
